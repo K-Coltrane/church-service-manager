@@ -1,0 +1,8 @@
+{
+  "buildCommand": "cd \"Online Daashboard\" && npm run build",
+  "outputDirectory": "Online Daashboard/.next",
+  "installCommand": "cd \"Online Daashboard\" && npm install",
+  "framework": "nextjs",
+  "rootDirectory": "Online Daashboard"
+}
+
