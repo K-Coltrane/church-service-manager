@@ -126,7 +126,7 @@ const StartServiceScreen: React.FC<Props> = ({ navigation }) => {
           </View>
 
           <View style={styles.field}>
-            <Text style={styles.label}>Location (Optional)</Text>
+            <Text style={styles.label}>Location</Text>
             <TextInput
               style={styles.input}
               value={location}
@@ -137,7 +137,7 @@ const StartServiceScreen: React.FC<Props> = ({ navigation }) => {
           </View>
 
           <View style={styles.field}>
-            <Text style={styles.label}>Notes (Optional)</Text>
+            <Text style={styles.label}>Notes</Text>
             <TextInput
               style={[styles.input, styles.textArea]}
               value={notes}

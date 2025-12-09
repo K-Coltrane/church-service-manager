@@ -1,5 +1,6 @@
 import axios from "axios"
 import { getItemAsync } from "expo-secure-store"
+import { supabaseService } from "./supabaseService"
 
 const API_BASE_URL = process.env.API_BASE_URL || "http://localhost:3000/api"
 
@@ -72,82 +73,119 @@ export class ApiService {
   }
 
   async getServiceTypes() {
-    if (!this.isBackendAvailable()) {
-      throw new Error("Backend not configured")
-    }
     try {
-      const response = await api.get("/service_types")
-      return response.data
+      // Try Supabase first
+      return await supabaseService.getServiceTypes()
     } catch (error: any) {
-      // Fail silently if backend unavailable
-      if (!error.response && (error.message === "Network Error" || error.code === "ECONNABORTED")) {
-        throw new Error("Backend unavailable")
+      // Fallback to old API if Supabase fails
+      if (!this.isBackendAvailable()) {
+        throw new Error("Backend not configured")
       }
-      throw error
+      try {
+        const response = await api.get("/service_types")
+        return response.data
+      } catch (apiError: any) {
+        // Fail silently if backend unavailable
+        if (!apiError.response && (apiError.message === "Network Error" || apiError.code === "ECONNABORTED")) {
+          throw new Error("Backend unavailable")
+        }
+        throw apiError
+      }
     }
   }
 
   async syncService(service: any) {
-    if (!this.isBackendAvailable()) {
-      throw new Error("Backend not configured")
-    }
     try {
-      const response = await api.post("/services", service)
-      return response.data
+      // Try Supabase first
+      const data = await supabaseService.createService(service)
+      return { id: data.id }
     } catch (error: any) {
-      // Fail silently for network errors
-      if (!error.response && (error.message === "Network Error" || error.code === "ECONNABORTED")) {
-        throw new Error("Backend unavailable")
+      // Fallback to old API if Supabase fails
+      if (!this.isBackendAvailable()) {
+        throw new Error("Backend not configured")
       }
-      throw error
+      try {
+        const response = await api.post("/services", service)
+        return response.data
+      } catch (apiError: any) {
+        // Fail silently for network errors
+        if (!apiError.response && (apiError.message === "Network Error" || apiError.code === "ECONNABORTED")) {
+          throw new Error("Backend unavailable")
+        }
+        throw apiError
+      }
     }
   }
 
   async syncVisitor(visitor: any) {
-    if (!this.isBackendAvailable()) {
-      throw new Error("Backend not configured")
-    }
     try {
-      const response = await api.post("/visitors", visitor)
-      return response.data
+      // Try Supabase first
+      const data = await supabaseService.createVisitor(visitor)
+      return { id: data.id }
     } catch (error: any) {
-      // Fail silently for network errors
-      if (!error.response && (error.message === "Network Error" || error.code === "ECONNABORTED")) {
-        throw new Error("Backend unavailable")
+      // Fallback to old API if Supabase fails
+      if (!this.isBackendAvailable()) {
+        throw new Error("Backend not configured")
       }
-      throw error
+      try {
+        const response = await api.post("/visitors", visitor)
+        return response.data
+      } catch (apiError: any) {
+        // Fail silently for network errors
+        if (!apiError.response && (apiError.message === "Network Error" || apiError.code === "ECONNABORTED")) {
+          throw new Error("Backend unavailable")
+        }
+        throw apiError
+      }
     }
   }
 
   async syncAttendance(attendance: any) {
-    if (!this.isBackendAvailable()) {
-      throw new Error("Backend not configured")
-    }
     try {
-      const response = await api.post("/attendance/checkin", attendance)
-      return response.data
+      // Try Supabase first
+      const data = await supabaseService.createAttendance({
+        service_id: attendance.service_id,
+        visitor_id: attendance.visitor_id,
+        checked_in_at: attendance.checked_in_at,
+      })
+      return data
     } catch (error: any) {
-      // Fail silently for network errors
-      if (!error.response && (error.message === "Network Error" || error.code === "ECONNABORTED")) {
-        throw new Error("Backend unavailable")
+      // Fallback to old API if Supabase fails
+      if (!this.isBackendAvailable()) {
+        throw new Error("Backend not configured")
       }
-      throw error
+      try {
+        const response = await api.post("/attendance/checkin", attendance)
+        return response.data
+      } catch (apiError: any) {
+        // Fail silently for network errors
+        if (!apiError.response && (apiError.message === "Network Error" || apiError.code === "ECONNABORTED")) {
+          throw new Error("Backend unavailable")
+        }
+        throw apiError
+      }
     }
   }
 
   async searchVisitors(query: string) {
-    if (!this.isBackendAvailable()) {
-      throw new Error("Backend not configured")
-    }
     try {
-      const response = await api.get(`/visitors/search?q=${encodeURIComponent(query)}`)
-      return response.data
+      // Try Supabase first
+      return await supabaseService.searchVisitors(query)
     } catch (error: any) {
-      // Fail silently for network errors
-      if (!error.response && (error.message === "Network Error" || error.code === "ECONNABORTED")) {
-        throw new Error("Backend unavailable")
+      // Fallback to old API if Supabase fails
+      if (!this.isBackendAvailable()) {
+        throw new Error("Backend not configured")
       }
-      throw error
+      try {
+        const response = await api.get(`/visitors/search?q=${encodeURIComponent(query)}`)
+        return response.data
+      } catch (apiError: any) {
+        // Fail silently for network errors
+        if (!apiError.response && (apiError.message === "Network Error" || apiError.code === "ECONNABORTED")) {
+          throw new Error("Backend unavailable")
+        }
+        throw apiError
+      }
     }
   }
 }

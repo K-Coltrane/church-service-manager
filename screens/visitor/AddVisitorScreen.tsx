@@ -151,7 +151,7 @@ const AddVisitorScreen: React.FC<Props> = ({ navigation, route }) => {
             </View>
 
             <View style={styles.field}>
-              <Text style={styles.label}>Phone (Optional)</Text>
+              <Text style={styles.label}>Phone</Text>
               <TextInput
                 style={styles.input}
                 value={phone}
@@ -163,7 +163,7 @@ const AddVisitorScreen: React.FC<Props> = ({ navigation, route }) => {
             </View>
 
             <View style={styles.field}>
-              <Text style={styles.label}>Email (Optional)</Text>
+              <Text style={styles.label}>Email</Text>
               <TextInput
                 style={styles.input}
                 value={email}
@@ -177,7 +177,7 @@ const AddVisitorScreen: React.FC<Props> = ({ navigation, route }) => {
             </View>
 
             <View style={styles.field}>
-              <Text style={styles.label}>Invited By (Optional)</Text>
+              <Text style={styles.label}>Invited By</Text>
               <TextInput
                 style={styles.input}
                 value={inviterName}

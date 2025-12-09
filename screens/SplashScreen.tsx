@@ -28,7 +28,7 @@ const SplashScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <>
-      <StatusBar style="dark" backgroundColor="#ffffff" translucent={false} />
+      <StatusBar style="dark" backgroundColor="transparent" translucent={true} />
       <View style={styles.container}>
         <Animatable.View animation="zoomIn" duration={1200} easing="ease-out" style={styles.animationContainer}>
           <Image

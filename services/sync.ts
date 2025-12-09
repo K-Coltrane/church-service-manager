@@ -42,6 +42,7 @@ class SyncService {
 
   async syncAll(): Promise<void> {
     if (this.syncInProgress) {
+      console.log("Sync already in progress, skipping...")
       return
     }
 
@@ -53,15 +54,19 @@ class SyncService {
     this.syncInProgress = true
     this.notifyListeners("syncing")
 
+    console.log("🔄 Starting sync to Supabase...")
+
     try {
       // Sync in order: services -> visitors -> attendance
+      // This order is critical because attendance depends on both service and visitor
       await this.syncServices()
       await this.syncVisitors()
       await this.syncAttendance()
 
+      console.log("✅ Sync to Supabase completed successfully")
       this.notifyListeners("synced")
-    } catch (error) {
-      console.error("Sync error:", error)
+    } catch (error: any) {
+      console.error("❌ Sync error:", error.message || error)
       this.notifyListeners("error")
       throw error
     } finally {
@@ -72,8 +77,15 @@ class SyncService {
   private async syncServices(): Promise<void> {
     const services = await databaseService.getUnsyncedServices()
 
+    if (services.length === 0) {
+      return
+    }
+
+    console.log(`Syncing ${services.length} service(s) to Supabase...`)
+
     for (const service of services) {
       try {
+        // Sync to Supabase (via apiService which tries Supabase first)
         const response = await apiService.syncService({
           service_type_id: service.service_type_id,
           location: service.location,
@@ -82,13 +94,19 @@ class SyncService {
           ended_at: service.ended_at,
         })
 
-        await databaseService.markServiceSynced(service.local_id, response.id)
+        // Update local record with Supabase ID (remote_id)
+        if (response.id) {
+          await databaseService.markServiceSynced(service.local_id, response.id)
+          console.log(`✓ Service synced: ${service.local_id} → Supabase ID: ${response.id}`)
+        } else {
+          throw new Error("No ID returned from Supabase")
+        }
       } catch (error: any) {
         // Only log if it's not a network/backend unavailable error
         if (error.message !== "Backend not configured" && error.message !== "Backend unavailable") {
-          console.warn("Error syncing service:", error.message || "Unknown error")
+          console.warn(`✗ Error syncing service ${service.local_id}:`, error.message || "Unknown error")
         }
-        // Continue with other services
+        // Continue with other services - don't stop sync on single failure
       }
     }
   }
@@ -96,8 +114,15 @@ class SyncService {
   private async syncVisitors(): Promise<void> {
     const visitors = await databaseService.getUnsyncedVisitors()
 
+    if (visitors.length === 0) {
+      return
+    }
+
+    console.log(`Syncing ${visitors.length} visitor(s) to Supabase...`)
+
     for (const visitor of visitors) {
       try {
+        // Sync to Supabase (via apiService which tries Supabase first)
         const response = await apiService.syncVisitor({
           first_name: visitor.first_name,
           last_name: visitor.last_name,
@@ -106,13 +131,19 @@ class SyncService {
           inviter_name: visitor.inviter_name,
         })
 
-        await databaseService.markVisitorSynced(visitor.local_id, response.id)
+        // Update local record with Supabase ID (remote_id)
+        if (response.id) {
+          await databaseService.markVisitorSynced(visitor.local_id, response.id)
+          console.log(`✓ Visitor synced: ${visitor.local_id} → Supabase ID: ${response.id}`)
+        } else {
+          throw new Error("No ID returned from Supabase")
+        }
       } catch (error: any) {
         // Only log if it's not a network/backend unavailable error
         if (error.message !== "Backend not configured" && error.message !== "Backend unavailable") {
-          console.warn("Error syncing visitor:", error.message || "Unknown error")
+          console.warn(`✗ Error syncing visitor ${visitor.local_id}:`, error.message || "Unknown error")
         }
-        // Continue with other visitors
+        // Continue with other visitors - don't stop sync on single failure
       }
     }
   }
@@ -120,47 +151,54 @@ class SyncService {
   private async syncAttendance(): Promise<void> {
     const attendance = await databaseService.getUnsyncedAttendance()
 
+    if (attendance.length === 0) {
+      return
+    }
+
+    console.log(`Syncing ${attendance.length} attendance record(s) to Supabase...`)
+
     for (const record of attendance) {
       try {
-        // Look up remote IDs for service and visitor
+        // Look up remote IDs (Supabase IDs) for service and visitor
         const service = await databaseService.getServiceByLocalId(record.service_local_id)
         const visitor = await databaseService.getVisitorByLocalId(record.visitor_local_id)
 
-        // Skip if service or visitor hasn't been synced yet (no remote_id)
+        // Skip if service or visitor hasn't been synced to Supabase yet (no remote_id)
         if (!service?.remote_id || !visitor?.remote_id) {
           console.log(
-            `Skipping attendance sync - service or visitor not synced yet. Service: ${service?.remote_id}, Visitor: ${visitor?.remote_id}`,
+            `⏭ Skipping attendance sync - dependencies not synced. Service ID: ${service?.remote_id || "missing"}, Visitor ID: ${visitor?.remote_id || "missing"}`,
           )
           continue
         }
 
+        // Sync to Supabase (via apiService which tries Supabase first)
         const response = await apiService.syncAttendance({
-          service_id: service.remote_id,
-          visitor_id: visitor.remote_id,
+          service_id: service.remote_id, // Use Supabase service ID
+          visitor_id: visitor.remote_id, // Use Supabase visitor ID
           checked_in_at: record.checked_in_at,
         })
 
-        // The response should have an id field
+        // Update local record with Supabase ID (remote_id)
         if (response.id && typeof response.id === "number") {
           await databaseService.markAttendanceSynced(record.local_id, response.id)
+          console.log(`✓ Attendance synced: ${record.local_id} → Supabase ID: ${response.id}`)
         } else if (response.success) {
-          // If backend returns success but no id, we still mark as synced
-          // Use a placeholder id (0) - this shouldn't happen with the updated backend
-          console.warn("Attendance synced but no ID returned from backend")
+          // If Supabase returns success but no id (shouldn't happen)
+          console.warn("Attendance synced but no ID returned from Supabase")
           await databaseService.markAttendanceSynced(record.local_id, 0)
         } else {
-          throw new Error("Invalid response from attendance sync endpoint")
+          throw new Error("Invalid response from Supabase")
         }
       } catch (error: any) {
         // Only log if it's not a network/backend unavailable error
         if (error.message !== "Backend not configured" && error.message !== "Backend unavailable") {
           if (error.response) {
-            console.warn("Attendance sync error:", error.response.status)
+            console.warn(`✗ Attendance sync error (${record.local_id}):`, error.response.status)
           } else {
-            console.warn("Attendance sync error:", error.message || "Unknown error")
+            console.warn(`✗ Attendance sync error (${record.local_id}):`, error.message || "Unknown error")
           }
         }
-        // Continue with other records
+        // Continue with other records - don't stop sync on single failure
       }
     }
   }

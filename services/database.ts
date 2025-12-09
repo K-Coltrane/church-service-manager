@@ -5,12 +5,14 @@ let db: SQLite.SQLiteDatabase | null = null
 const initializeDatabase = () => {
   try {
     if (!db) {
+      // Open persistent database - data will survive app restarts
+      // SQLite automatically persists data to disk
       db = SQLite.openDatabaseSync("church_service.db")
-      console.log("Database initialized successfully")
+      console.log("✅ Database file opened - data persists across app sessions")
     }
     return db
   } catch (error) {
-    console.error("Database initialization error:", error)
+    console.error("❌ Database initialization error:", error)
     throw error
   }
 }
@@ -94,15 +96,19 @@ interface AttendanceRow {
 
 class DatabaseService {
   private database: SQLite.SQLiteDatabase | null = null
+  private initialized: boolean = false
 
   constructor() {
-    setTimeout(() => {
-      this.initDatabase()
-    }, 100)
+    // Initialize database immediately
+    this.initDatabase()
   }
 
   private initDatabase() {
     try {
+      if (this.initialized && this.database) {
+        return // Already initialized
+      }
+
       this.database = initializeDatabase()
 
       // Services table
@@ -159,15 +165,21 @@ class DatabaseService {
           name TEXT NOT NULL
         );
       `)
+
+      this.initialized = true
+      console.log("✅ Database initialized and ready - all data will persist locally")
     } catch (error) {
-      console.error("Database initialization error:", error)
+      console.error("❌ Database initialization error:", error)
+      throw error // Re-throw to ensure we know if initialization fails
     }
   }
 
   private getDb(): SQLite.SQLiteDatabase {
-    if (!this.database) {
-      this.database = initializeDatabase()
+    if (!this.database || !this.initialized) {
       this.initDatabase()
+    }
+    if (!this.database) {
+      throw new Error("Database not initialized")
     }
     return this.database
   }
@@ -190,9 +202,11 @@ class DatabaseService {
             service.synced ? 1 : 0,
           ],
         )
-        resolve({ ...service, id: result.lastInsertRowId })
+        const savedService = { ...service, id: result.lastInsertRowId }
+        console.log(`💾 Service saved locally: ${service.local_id} (synced: ${service.synced})`)
+        resolve(savedService)
       } catch (error) {
-        console.error("Create service error:", error)
+        console.error("❌ Create service error:", error)
         reject(error)
       }
     })
@@ -261,9 +275,11 @@ class DatabaseService {
             visitor.created_at,
           ],
         )
-        resolve({ ...visitor, id: result.lastInsertRowId })
+        const savedVisitor = { ...visitor, id: result.lastInsertRowId }
+        console.log(`💾 Visitor saved locally: ${visitor.local_id} - ${visitor.first_name} ${visitor.last_name} (synced: ${visitor.synced})`)
+        resolve(savedVisitor)
       } catch (error) {
-        console.error("Create visitor error:", error)
+        console.error("❌ Create visitor error:", error)
         reject(error)
       }
     })
@@ -319,9 +335,11 @@ class DatabaseService {
             attendance.synced ? 1 : 0,
           ],
         )
-        resolve({ ...attendance, id: result.lastInsertRowId })
+        const savedAttendance = { ...attendance, id: result.lastInsertRowId }
+        console.log(`💾 Attendance saved locally: ${attendance.local_id} (synced: ${attendance.synced})`)
+        resolve(savedAttendance)
       } catch (error) {
-        console.error("Create attendance error:", error)
+        console.error("❌ Create attendance error:", error)
         reject(error)
       }
     })
