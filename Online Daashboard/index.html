@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Church Attendance Dashboard</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-gray-50">
+    <!-- Login Modal -->
+    <div class="modal fade" id="loginModal" tabindex="-1" data-bs-backdrop="static">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-body p-5">
+                    <div class="text-center mb-4">
+                        <i class="fas fa-church text-blue-600 text-4xl mb-3"></i>
+                        <h3 class="text-gray-800 font-bold">Church Dashboard Login</h3>
+                        <p class="text-gray-600">Please sign in to access the admin panel</p>
+                    </div>
+                    
+                    <form id="loginForm">
+                        <div class="mb-3">
+                            <label class="form-label text-gray-700">Email Address</label>
+                            <input type="email" class="form-control border-gray-300 focus:border-blue-500" id="loginEmail" required>
+                        </div>
+                        <div class="mb-4">
+                            <label class="form-label text-gray-700">Password</label>
+                            <input type="password" class="form-control border-gray-300 focus:border-blue-500" id="loginPassword" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100 py-2 bg-blue-600 hover:bg-blue-700 border-0">
+                            <i class="fas fa-sign-in-alt me-2"></i>Sign In
+                        </button>
+                    </form>
+                    
+                    <div class="text-center mt-3">
+                        <small class="text-gray-500">Demo: admin@church.com / password123</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Dashboard -->
+    <div id="dashboard" class="d-none">
+        <!-- Sidebar -->
+        <div class="sidebar bg-white shadow-lg">
+            <div class="p-4 border-b">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-church text-blue-600 text-2xl me-3"></i>
+                    <div>
+                        <h5 class="mb-0 text-gray-800">Church Admin</h5>
+                        <small class="text-gray-600">Dashboard</small>
+                    </div>
+                </div>
+            </div>
+            
+            <nav class="nav flex-column p-3">
+                <a class="nav-link active" href="#" data-section="overview">
+                    <i class="fas fa-tachometer-alt me-2"></i>Overview
+                </a>
+                <a class="nav-link" href="#" data-section="attendance">
+                    <i class="fas fa-users me-2"></i>Attendance
+                </a>
+                <a class="nav-link" href="#" data-section="services">
+                    <i class="fas fa-calendar-alt me-2"></i>Services
+                </a>
+                <a class="nav-link" href="#" data-section="visitors">
+                    <i class="fas fa-user-friends me-2"></i>Visitors
+                </a>
+                <a class="nav-link" href="#" data-section="users">
+                    <i class="fas fa-user-cog me-2"></i>Users
+                </a>
+                <a class="nav-link" href="#" data-section="reports">
+                    <i class="fas fa-chart-bar me-2"></i>Reports
+                </a>
+            </nav>
+            
+            <div class="mt-auto p-3 border-t">
+                <button class="btn btn-outline-danger btn-sm w-100" onclick="logout()">
+                    <i class="fas fa-sign-out-alt me-2"></i>Logout
+                </button>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Header -->
+            <header class="bg-white shadow-sm border-b px-4 py-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0 text-gray-800" id="pageTitle">Dashboard Overview</h4>
+                    <div class="d-flex align-items-center">
+                        <span class="text-gray-600 me-3">Welcome, Admin</span>
+                        <div class="dropdown">
+                            <button class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown">
+                                <i class="fas fa-user-circle me-1"></i>Profile
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="#"><i class="fas fa-cog me-2"></i>Settings</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="#" onclick="logout()"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Content Area -->
+            <main class="p-4">
+                <!-- Overview Section -->
+                <div id="overview-section" class="content-section">
+                    <!-- Stats Cards -->
+                    <div class="row mb-4">
+                        <div class="col-md-3 mb-3">
+                            <div class="card border-0 shadow-sm bg-gradient-to-r from-blue-500 to-blue-600 text-white">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between">
+                                        <div>
+                                            <h6 class="card-title opacity-75">Total Attendance</h6>
+                                            <h3 class="mb-0">1,247</h3>
+                                        </div>
+                                        <i class="fas fa-users text-3xl opacity-75"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <div class="card border-0 shadow-sm bg-gradient-to-r from-green-500 to-green-600 text-white">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between">
+                                        <div>
+                                            <h6 class="card-title opacity-75">Active Services</h6>
+                                            <h3 class="mb-0">8</h3>
+                                        </div>
+                                        <i class="fas fa-calendar-check text-3xl opacity-75"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <div class="card border-0 shadow-sm bg-gradient-to-r from-purple-500 to-purple-600 text-white">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between">
+                                        <div>
+                                            <h6 class="card-title opacity-75">Registered Visitors</h6>
+                                            <h3 class="mb-0">342</h3>
+                                        </div>
+                                        <i class="fas fa-user-plus text-3xl opacity-75"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <div class="card border-0 shadow-sm bg-gradient-to-r from-orange-500 to-orange-600 text-white">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between">
+                                        <div>
+                                            <h6 class="card-title opacity-75">This Week</h6>
+                                            <h3 class="mb-0">89</h3>
+                                        </div>
+                                        <i class="fas fa-chart-line text-3xl opacity-75"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Charts Row -->
+                    <div class="row mb-4">
+                        <div class="col-lg-8 mb-3">
+                            <div class="card border-0 shadow-sm">
+                                <div class="card-header bg-white border-0 pb-0">
+                                    <h6 class="card-title text-gray-800">Attendance Trends</h6>
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="attendanceChart" height="100"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-4 mb-3">
+                            <div class="card border-0 shadow-sm">
+                                <div class="card-header bg-white border-0 pb-0">
+                                    <h6 class="card-title text-gray-800">Service Types</h6>
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="serviceChart" height="200"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Activity -->
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-header bg-white border-0">
+                            <h6 class="card-title text-gray-800 mb-0">Recent Activity</h6>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="list-group list-group-flush">
+                                <div class="list-group-item border-0 py-3">
+                                    <div class="d-flex align-items-center">
+                                        <div class="bg-blue-100 rounded-circle p-2 me-3">
+                                            <i class="fas fa-user-plus text-blue-600"></i>
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <h6 class="mb-1">New visitor registered</h6>
+                                            <small class="text-gray-600">John Smith joined Sunday Service</small>
+                                        </div>
+                                        <small class="text-gray-500">2 min ago</small>
+                                    </div>
+                                </div>
+                                <div class="list-group-item border-0 py-3">
+                                    <div class="d-flex align-items-center">
+                                        <div class="bg-green-100 rounded-circle p-2 me-3">
+                                            <i class="fas fa-calendar-check text-green-600"></i>
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <h6 class="mb-1">Service completed</h6>
+                                            <small class="text-gray-600">Sunday Morning Service ended with 87 attendees</small>
+                                        </div>
+                                        <small class="text-gray-500">1 hour ago</small>
+                                    </div>
+                                </div>
+                                <div class="list-group-item border-0 py-3">
+                                    <div class="d-flex align-items-center">
+                                        <div class="bg-purple-100 rounded-circle p-2 me-3">
+                                            <i class="fas fa-users text-purple-600"></i>
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <h6 class="mb-1">Attendance milestone</h6>
+                                            <small class="text-gray-600">Reached 1,200 total attendees this month</small>
+                                        </div>
+                                        <small class="text-gray-500">3 hours ago</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Attendance Section -->
+                <div id="attendance-section" class="content-section d-none">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h5 class="text-gray-800 mb-0">Attendance Records</h5>
+                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addAttendanceModal">
+                            <i class="fas fa-plus me-2"></i>Record Attendance
+                        </button>
+                    </div>
+
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Service</th>
+                                            <th>Visitor</th>
+                                            <th>Check-in Time</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="attendanceTableBody">
+                                        <!-- Dynamic content will be loaded here -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Services Section -->
+                <div id="services-section" class="content-section d-none">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h5 class="text-gray-800 mb-0">Church Services</h5>
+                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addServiceModal">
+                            <i class="fas fa-plus me-2"></i>Add Service
+                        </button>
+                    </div>
+
+                    <div class="row" id="servicesGrid">
+                        <!-- Dynamic service cards will be loaded here -->
+                    </div>
+                </div>
+
+                <!-- Visitors Section -->
+                <div id="visitors-section" class="content-section d-none">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h5 class="text-gray-800 mb-0">Visitor Management</h5>
+                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addVisitorModal">
+                            <i class="fas fa-user-plus me-2"></i>Add Visitor
+                        </button>
+                    </div>
+
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-body">
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <input type="text" class="form-control" placeholder="Search visitors..." id="visitorSearch">
+                                </div>
+                                <div class="col-md-3">
+                                    <select class="form-select" id="visitorFilter">
+                                        <option value="">All Visitors</option>
+                                        <option value="new">New Visitors</option>
+                                        <option value="returning">Returning</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <button class="btn btn-outline-primary w-100">
+                                        <i class="fas fa-download me-2"></i>Export
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Email</th>
+                                            <th>Phone</th>
+                                            <th>First Visit</th>
+                                            <th>Total Visits</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="visitorsTableBody">
+                                        <!-- Dynamic content will be loaded here -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Users Section -->
+                <div id="users-section" class="content-section d-none">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h5 class="text-gray-800 mb-0">User Management</h5>
+                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
+                            <i class="fas fa-user-plus me-2"></i>Add User
+                        </button>
+                    </div>
+
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Email</th>
+                                            <th>Role</th>
+                                            <th>Status</th>
+                                            <th>Last Login</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="usersTableBody">
+                                        <!-- Dynamic content will be loaded here -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Reports Section -->
+                <div id="reports-section" class="content-section d-none">
+                    <h5 class="text-gray-800 mb-4">Reports & Analytics</h5>
+                    
+                    <div class="row mb-4">
+                        <div class="col-md-4 mb-3">
+                            <div class="card border-0 shadow-sm">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-file-excel text-green-600 text-4xl mb-3"></i>
+                                    <h6>Attendance Report</h6>
+                                    <p class="text-gray-600 small">Export detailed attendance records</p>
+                                    <button class="btn btn-outline-success btn-sm">
+                                        <i class="fas fa-download me-1"></i>Download Excel
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="card border-0 shadow-sm">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-file-pdf text-red-600 text-4xl mb-3"></i>
+                                    <h6>Service Summary</h6>
+                                    <p class="text-gray-600 small">Generate service statistics</p>
+                                    <button class="btn btn-outline-danger btn-sm">
+                                        <i class="fas fa-download me-1"></i>Download PDF
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="card border-0 shadow-sm">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-chart-pie text-blue-600 text-4xl mb-3"></i>
+                                    <h6>Analytics Dashboard</h6>
+                                    <p class="text-gray-600 small">View detailed analytics</p>
+                                    <button class="btn btn-outline-primary btn-sm">
+                                        <i class="fas fa-eye me-1"></i>View Report
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-header bg-white border-0">
+                            <h6 class="card-title text-gray-800 mb-0">Custom Report Generator</h6>
+                        </div>
+                        <div class="card-body">
+                            <form class="row g-3">
+                                <div class="col-md-3">
+                                    <label class="form-label">Report Type</label>
+                                    <select class="form-select">
+                                        <option>Attendance Summary</option>
+                                        <option>Visitor Analysis</option>
+                                        <option>Service Performance</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Date Range</label>
+                                    <select class="form-select">
+                                        <option>Last 7 days</option>
+                                        <option>Last 30 days</option>
+                                        <option>Last 3 months</option>
+                                        <option>Custom Range</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Format</label>
+                                    <select class="form-select">
+                                        <option>Excel (.xlsx)</option>
+                                        <option>PDF (.pdf)</option>
+                                        <option>CSV (.csv)</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">&nbsp;</label>
+                                    <button type="submit" class="btn btn-primary w-100">
+                                        <i class="fas fa-cog me-2"></i>Generate Report
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <!-- Add Service Modal -->
+    <div class="modal fade" id="addServiceModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add New Service</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addServiceForm">
+                        <div class="mb-3">
+                            <label class="form-label">Service Name</label>
+                            <input type="text" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Service Type</label>
+                            <select class="form-select" required>
+                                <option value="">Select Type</option>
+                                <option value="sunday">Sunday Service</option>
+                                <option value="bible-study">Bible Study</option>
+                                <option value="prayer">Prayer Meeting</option>
+                                <option value="youth">Youth Service</option>
+                            </select>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <label class="form-label">Date</label>
+                                <input type="date" class="form-control" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Time</label>
+                                <input type="time" class="form-control" required>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" form="addServiceForm" class="btn btn-primary">Add Service</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Visitor Modal -->
+    <div class="modal fade" id="addVisitorModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add New Visitor</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addVisitorForm">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">First Name</label>
+                                <input type="text" class="form-control" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Last Name</label>
+                                <input type="text" class="form-control" required>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Email</label>
+                            <input type="email" class="form-control">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Phone</label>
+                            <input type="tel" class="form-control">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Address</label>
+                            <textarea class="form-control" rows="2"></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" form="addVisitorForm" class="btn btn-primary">Add Visitor</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add User Modal -->
+    <div class="modal fade" id="addUserModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add New User</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addUserForm">
+                        <div class="mb-3">
+                            <label class="form-label">Full Name</label>
+                            <input type="text" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Email</label>
+                            <input type="email" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Role</label>
+                            <select class="form-select" required>
+                                <option value="">Select Role</option>
+                                <option value="admin">Administrator</option>
+                                <option value="usher">Usher</option>
+                                <option value="viewer">Viewer</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Password</label>
+                            <input type="password" class="form-control" required>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" form="addUserForm" class="btn btn-primary">Add User</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

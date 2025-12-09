@@ -39,8 +39,8 @@ const StartServiceScreen: React.FC<Props> = ({ navigation }) => {
           const remoteTypes = await apiService.getServiceTypes()
           await databaseService.saveServiceTypes(remoteTypes)
           types = remoteTypes
-        } catch (error) {
-          // If API fails, use default types
+        } catch (error: any) {
+          // If API fails (backend unavailable or network error), use default types silently
           const defaultTypes = [
             { id: 1, name: "Sunday Morning Service" },
             { id: 2, name: "Sunday Evening Service" },

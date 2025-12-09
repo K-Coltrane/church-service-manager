@@ -1,6 +1,10 @@
 {
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
+    "jsx": "react-jsx",
+    "module": "esnext",
+    "skipLibCheck": true,
+    "noImplicitAny": false,
     "strict": true,
     "paths": {
       "@/*": [

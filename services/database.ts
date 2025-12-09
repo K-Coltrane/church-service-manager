@@ -369,6 +369,67 @@ class DatabaseService {
     })
   }
 
+  getRecentCheckIns(limit: number = 100): Promise<Array<Attendance & { visitor: Visitor; service: Service }>> {
+    return new Promise((resolve, reject) => {
+      try {
+        const database = this.getDb()
+        const results = database.getAllSync(
+          `SELECT a.*, 
+                  v.first_name, v.last_name, v.phone, v.email,
+                  s.service_type_name, s.location, s.started_at
+           FROM attendance a 
+           JOIN visitors v ON a.visitor_local_id = v.local_id 
+           JOIN services s ON a.service_local_id = s.local_id
+           ORDER BY a.checked_in_at DESC 
+           LIMIT ?`,
+          [limit],
+        ) as Array<
+          AttendanceRow & {
+            first_name: string
+            last_name: string
+            phone: string | null
+            email: string | null
+            service_type_name: string | null
+            location: string | null
+            started_at: string
+          }
+        >
+
+        const attendance = results.map((row) => ({
+          id: row.id,
+          local_id: row.local_id,
+          service_local_id: row.service_local_id,
+          visitor_local_id: row.visitor_local_id,
+          checked_in_at: row.checked_in_at,
+          synced: row.synced === 1,
+          remote_id: row.remote_id || undefined,
+          visitor: {
+            local_id: row.visitor_local_id,
+            first_name: row.first_name,
+            last_name: row.last_name,
+            phone: row.phone || undefined,
+            email: row.email || undefined,
+            synced: true,
+            created_at: "",
+          },
+          service: {
+            local_id: row.service_local_id,
+            service_type_id: 0,
+            service_type_name: row.service_type_name || undefined,
+            location: row.location || undefined,
+            started_at: row.started_at,
+            synced: true,
+          },
+        }))
+
+        resolve(attendance)
+      } catch (error) {
+        console.error("Get recent check-ins error:", error)
+        reject(error)
+      }
+    })
+  }
+
   // Service types methods
   saveServiceTypes(serviceTypes: ServiceType[]): Promise<void> {
     return new Promise((resolve, reject) => {
@@ -514,6 +575,64 @@ class DatabaseService {
         resolve()
       } catch (error) {
         console.error("Mark attendance synced error:", error)
+        reject(error)
+      }
+    })
+  }
+
+  getServiceByLocalId(localId: string): Promise<Service | null> {
+    return new Promise((resolve, reject) => {
+      try {
+        const database = this.getDb()
+        const result = database.getFirstSync("SELECT * FROM services WHERE local_id = ?", [localId]) as ServiceRow | null
+
+        if (result) {
+          resolve({
+            id: result.id,
+            local_id: result.local_id,
+            service_type_id: result.service_type_id,
+            service_type_name: result.service_type_name || undefined,
+            location: result.location || undefined,
+            notes: result.notes || undefined,
+            started_at: result.started_at,
+            ended_at: result.ended_at || undefined,
+            synced: result.synced === 1,
+            remote_id: result.remote_id || undefined,
+          })
+        } else {
+          resolve(null)
+        }
+      } catch (error) {
+        console.error("Get service by local ID error:", error)
+        reject(error)
+      }
+    })
+  }
+
+  getVisitorByLocalId(localId: string): Promise<Visitor | null> {
+    return new Promise((resolve, reject) => {
+      try {
+        const database = this.getDb()
+        const result = database.getFirstSync("SELECT * FROM visitors WHERE local_id = ?", [localId]) as VisitorRow | null
+
+        if (result) {
+          resolve({
+            id: result.id,
+            local_id: result.local_id,
+            first_name: result.first_name,
+            last_name: result.last_name,
+            phone: result.phone || undefined,
+            email: result.email || undefined,
+            inviter_name: result.inviter_name || undefined,
+            synced: result.synced === 1,
+            remote_id: result.remote_id || undefined,
+            created_at: result.created_at,
+          })
+        } else {
+          resolve(null)
+        }
+      } catch (error) {
+        console.error("Get visitor by local ID error:", error)
         reject(error)
       }
     })

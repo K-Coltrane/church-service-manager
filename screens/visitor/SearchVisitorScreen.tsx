@@ -43,9 +43,9 @@ const SearchVisitorScreen: React.FC<Props> = ({ navigation, route }) => {
         try {
           const remoteResults = await apiService.searchVisitors(searchQuery.trim())
           results = remoteResults
-        } catch (error) {
-          // Remote search failed, continue with local results
-          console.log("Remote search failed:", error)
+        } catch (error: any) {
+          // Remote search failed (backend unavailable), continue with local results silently
+          // Don't log network errors to reduce console noise
         }
       }
 

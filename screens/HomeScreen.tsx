@@ -6,7 +6,6 @@ import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView, RefreshCon
 import { useFocusEffect } from "@react-navigation/native"
 import type { StackNavigationProp } from "@react-navigation/stack"
 import type { RootStackParamList } from "../navigation/AppNavigator"
-import { useAuth } from "../context/AuthContext"
 import { databaseService, type Service } from "../services/database"
 import { syncService, type SyncStatus } from "../services/sync"
 
@@ -17,7 +16,6 @@ interface Props {
 }
 
 const HomeScreen: React.FC<Props> = ({ navigation }) => {
-  const { logout, user } = useAuth()
   const [activeService, setActiveService] = useState<Service | null>(null)
   const [syncStatus, setSyncStatus] = useState<SyncStatus>("synced")
   const [refreshing, setRefreshing] = useState(false)
@@ -63,12 +61,6 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
     setRefreshing(false)
   }
 
-  const handleLogout = () => {
-    Alert.alert("Logout", "Are you sure you want to logout?", [
-      { text: "Cancel", style: "cancel" },
-      { text: "Logout", style: "destructive", onPress: logout },
-    ])
-  }
 
   const getSyncStatusColor = () => {
     switch (syncStatus) {
@@ -106,7 +98,7 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
       <View style={styles.header}>
-        <Text style={styles.welcomeText}>Welcome, {user?.name}</Text>
+        <Text style={styles.welcomeText}>Church Service Manager</Text>
         <TouchableOpacity style={styles.syncStatus} onPress={() => navigation.navigate("SyncStatus")}>
           <View style={[styles.syncDot, { backgroundColor: getSyncStatusColor() }]} />
           <Text style={styles.syncText}>{getSyncStatusText()}</Text>
@@ -146,8 +138,8 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
             <Text style={styles.actionButtonText}>View Sync Status</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={[styles.actionButton, styles.logoutButton]} onPress={handleLogout}>
-            <Text style={[styles.actionButtonText, styles.logoutButtonText]}>Logout</Text>
+          <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate("RecentCheckIns")}>
+            <Text style={styles.actionButtonText}>View Recent Check-ins</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -268,12 +260,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#1e293b",
     textAlign: "center",
-  },
-  logoutButton: {
-    borderColor: "#ef4444",
-  },
-  logoutButtonText: {
-    color: "#ef4444",
   },
 })
 

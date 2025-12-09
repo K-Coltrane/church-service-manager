@@ -1,9 +1,8 @@
 // Removed "use client" directive for React Native
-import "react-native-get-random-values"
 import { StatusBar } from "expo-status-bar"
-import { AuthProvider } from "./context/AuthContext"
-import AppNavigator from "./navigation/AppNavigator"
 import { useEffect } from "react"
+import "react-native-get-random-values"
+import AppNavigator from "./navigation/AppNavigator"
 
 export default function App() {
   useEffect(() => {
@@ -17,9 +16,10 @@ export default function App() {
   }, [])
 
   return (
-    <AuthProvider>
-      <StatusBar style="light" backgroundColor="#6366f1" />
+    <>
+      <StatusBar style="dark" backgroundColor="#ffffff" translucent={false} />
       <AppNavigator />
-    </AuthProvider>
+    </>
   )
 }
+

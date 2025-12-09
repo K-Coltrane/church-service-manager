@@ -83,8 +83,11 @@ class SyncService {
         })
 
         await databaseService.markServiceSynced(service.local_id, response.id)
-      } catch (error) {
-        console.error("Error syncing service:", error)
+      } catch (error: any) {
+        // Only log if it's not a network/backend unavailable error
+        if (error.message !== "Backend not configured" && error.message !== "Backend unavailable") {
+          console.warn("Error syncing service:", error.message || "Unknown error")
+        }
         // Continue with other services
       }
     }
@@ -104,8 +107,11 @@ class SyncService {
         })
 
         await databaseService.markVisitorSynced(visitor.local_id, response.id)
-      } catch (error) {
-        console.error("Error syncing visitor:", error)
+      } catch (error: any) {
+        // Only log if it's not a network/backend unavailable error
+        if (error.message !== "Backend not configured" && error.message !== "Backend unavailable") {
+          console.warn("Error syncing visitor:", error.message || "Unknown error")
+        }
         // Continue with other visitors
       }
     }
@@ -116,15 +122,44 @@ class SyncService {
 
     for (const record of attendance) {
       try {
+        // Look up remote IDs for service and visitor
+        const service = await databaseService.getServiceByLocalId(record.service_local_id)
+        const visitor = await databaseService.getVisitorByLocalId(record.visitor_local_id)
+
+        // Skip if service or visitor hasn't been synced yet (no remote_id)
+        if (!service?.remote_id || !visitor?.remote_id) {
+          console.log(
+            `Skipping attendance sync - service or visitor not synced yet. Service: ${service?.remote_id}, Visitor: ${visitor?.remote_id}`,
+          )
+          continue
+        }
+
         const response = await apiService.syncAttendance({
-          service_local_id: record.service_local_id,
-          visitor_local_id: record.visitor_local_id,
+          service_id: service.remote_id,
+          visitor_id: visitor.remote_id,
           checked_in_at: record.checked_in_at,
         })
 
-        await databaseService.markAttendanceSynced(record.local_id, response.id)
-      } catch (error) {
-        console.error("Error syncing attendance:", error)
+        // The response should have an id field
+        if (response.id && typeof response.id === "number") {
+          await databaseService.markAttendanceSynced(record.local_id, response.id)
+        } else if (response.success) {
+          // If backend returns success but no id, we still mark as synced
+          // Use a placeholder id (0) - this shouldn't happen with the updated backend
+          console.warn("Attendance synced but no ID returned from backend")
+          await databaseService.markAttendanceSynced(record.local_id, 0)
+        } else {
+          throw new Error("Invalid response from attendance sync endpoint")
+        }
+      } catch (error: any) {
+        // Only log if it's not a network/backend unavailable error
+        if (error.message !== "Backend not configured" && error.message !== "Backend unavailable") {
+          if (error.response) {
+            console.warn("Attendance sync error:", error.response.status)
+          } else {
+            console.warn("Attendance sync error:", error.message || "Unknown error")
+          }
+        }
         // Continue with other records
       }
     }
@@ -134,7 +169,12 @@ class SyncService {
   startAutoSync() {
     NetInfo.addEventListener((state) => {
       if (state.isConnected && !this.syncInProgress) {
-        this.syncAll().catch(console.error)
+        this.syncAll().catch((error: any) => {
+          // Only log if it's not a backend unavailable error
+          if (error.message !== "Backend not configured" && error.message !== "Backend unavailable" && error.message !== "No internet connection") {
+            console.warn("Auto-sync error:", error.message || "Unknown error")
+          }
+        })
       }
     })
   }
