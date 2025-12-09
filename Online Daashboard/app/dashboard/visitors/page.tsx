@@ -27,6 +27,7 @@ export default function VisitorsPage() {
   const [visitors, setVisitors] = useState<Visitor[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
+  const [promotingVisitorId, setPromotingVisitorId] = useState<number | null>(null)
 
   useEffect(() => {
     loadVisitors()
@@ -118,19 +119,42 @@ export default function VisitorsPage() {
     }
   }
 
-  const handlePromote = (id: number) => {
+  const handlePromote = async (id: number) => {
+    // Prevent multiple promotions at once
+    if (promotingVisitorId !== null) {
+      console.log("Promotion already in progress, ignoring duplicate click")
+      return
+    }
+
     const visitor = visitors.find((v) => v.id === id)
-    if (!visitor) return
+    if (!visitor) {
+      console.error("Visitor not found with id:", id)
+      return
+    }
+
+    // Set promoting flag immediately to prevent duplicate clicks
+    setPromotingVisitorId(id)
 
     if (confirm(`Promote ${visitor.first_name} ${visitor.last_name} to member? This will move them from visitors to members.`)) {
-      promoteVisitorToMember(visitor)
+      await promoteVisitorToMember(visitor)
+    } else {
+      // User cancelled, reset the flag
+      setPromotingVisitorId(null)
     }
   }
 
   const promoteVisitorToMember = async (visitor: Visitor) => {
     try {
       console.log("=== PROMOTING VISITOR ===")
+      console.log("Visitor ID:", visitor.id)
       console.log("Visitor data:", visitor)
+      
+      // Double-check we're only promoting this specific visitor
+      if (promotingVisitorId !== visitor.id) {
+        console.warn("Promotion ID mismatch, aborting")
+        setPromotingVisitorId(null)
+        return
+      }
       
       // First, test if we can access the members table
       console.log("Testing members table access...")
@@ -184,6 +208,9 @@ export default function VisitorsPage() {
       } else {
         throw new Error("Failed to create member record - no ID returned")
       }
+      
+      // Reset promoting flag after successful promotion
+      setPromotingVisitorId(null)
     } catch (error: any) {
       console.error("=== ERROR PROMOTING VISITOR ===")
       console.error("Error type:", typeof error)
@@ -253,6 +280,9 @@ export default function VisitorsPage() {
         const fullError = `Code: ${errorCode || "N/A"}\nMessage: ${errorMessage}\n${errorHint ? `Hint: ${errorHint}` : ""}`
         alert(`Failed to promote visitor to member:\n\n${fullError}\n\nPlease check the browser console (F12) for more details.`)
       }
+      
+      // Reset promoting flag on error
+      setPromotingVisitorId(null)
     }
   }
 
@@ -366,15 +396,34 @@ export default function VisitorsPage() {
                             </button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem className="gap-2" onClick={() => handleEdit(visitor.id)}>
+                            <DropdownMenuItem 
+                              className="gap-2" 
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleEdit(visitor.id)
+                              }}
+                            >
                               <Edit2 className="w-4 h-4" />
                               <span>Edit</span>
                             </DropdownMenuItem>
-                            <DropdownMenuItem className="gap-2 text-primary" onClick={() => handlePromote(visitor.id)}>
+                            <DropdownMenuItem 
+                              className="gap-2 text-primary" 
+                              disabled={promotingVisitorId !== null}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handlePromote(visitor.id)
+                              }}
+                            >
                               <UserPlus className="w-4 h-4" />
-                              <span>Promote to Member</span>
+                              <span>{promotingVisitorId === visitor.id ? "Promoting..." : "Promote to Member"}</span>
                             </DropdownMenuItem>
-                            <DropdownMenuItem className="gap-2 text-destructive" onClick={() => handleDelete(visitor.id)}>
+                            <DropdownMenuItem 
+                              className="gap-2 text-destructive" 
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleDelete(visitor.id)
+                              }}
+                            >
                               <Trash2 className="w-4 h-4" />
                               <span>Delete</span>
                             </DropdownMenuItem>

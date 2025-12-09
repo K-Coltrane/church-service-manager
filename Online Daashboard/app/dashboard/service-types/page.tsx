@@ -157,27 +157,28 @@ export default function ServiceTypesPage() {
                             N/A
                           </span>
                         </td>
-                      <td className="py-3 px-4">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <button className="p-1 hover:bg-muted rounded transition-colors">
-                              <MoreVertical className="w-4 h-4 text-muted-foreground" />
-                            </button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem className="gap-2" onClick={() => handleEdit(type.id)}>
-                              <Edit2 className="w-4 h-4" />
-                              <span>Edit</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className="gap-2 text-destructive" onClick={() => handleDelete(type.id)}>
-                              <Trash2 className="w-4 h-4" />
-                              <span>Delete</span>
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </td>
-                    </tr>
-                  ))}
+                        <td className="py-3 px-4">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button className="p-1 hover:bg-muted rounded transition-colors">
+                                <MoreVertical className="w-4 h-4 text-muted-foreground" />
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem className="gap-2" onClick={() => handleEdit(type.id)}>
+                                <Edit2 className="w-4 h-4" />
+                                <span>Edit</span>
+                              </DropdownMenuItem>
+                              <DropdownMenuItem className="gap-2 text-destructive" onClick={() => handleDelete(type.id)}>
+                                <Trash2 className="w-4 h-4" />
+                                <span>Delete</span>
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
