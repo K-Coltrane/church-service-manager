@@ -16,6 +16,7 @@
       "**/*"
     ],
     "ios": {
+      "bundleIdentifier": "com.anonymous.churchservicemanager",
       "supportsTablet": true
     },
     "android": {
@@ -24,8 +25,6 @@
         "backgroundColor": "#FFFFFF"
       },
       "permissions": [
-        "android.permission.INTERNET",
-        "android.permission.ACCESS_NETWORK_STATE",
         "android.permission.INTERNET",
         "android.permission.ACCESS_NETWORK_STATE"
       ],

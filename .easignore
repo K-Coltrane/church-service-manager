@@ -1,0 +1,8 @@
+Online Daashboard/
+build-artifacts/web/
+android-sdk/
+android/local.properties
+ios/
+android/
+node_modules/
+.expo/
