@@ -1,24 +1,24 @@
 "use client"
 
+import type { RouteProp } from "@react-navigation/native"
+import type { StackNavigationProp } from "@react-navigation/stack"
 import type React from "react"
 import { useState } from "react"
 import {
-  View,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
-  Alert,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
-  ActivityIndicator,
+  View,
 } from "react-native"
-import type { StackNavigationProp } from "@react-navigation/stack"
-import type { RouteProp } from "@react-navigation/native"
+import { v4 as uuidv4 } from "uuid"
 import type { RootStackParamList } from "../../navigation/AppNavigator"
 import { databaseService } from "../../services/database"
-import { v4 as uuidv4 } from "uuid"
 
 type AddVisitorScreenNavigationProp = StackNavigationProp<RootStackParamList, "AddVisitor">
 type AddVisitorScreenRouteProp = RouteProp<RootStackParamList, "AddVisitor">
@@ -33,6 +33,7 @@ const AddVisitorScreen: React.FC<Props> = ({ navigation, route }) => {
   const [firstName, setFirstName] = useState("")
   const [lastName, setLastName] = useState("")
   const [phone, setPhone] = useState("")
+  const [location, setLocation] = useState("")
   const [email, setEmail] = useState("")
   const [inviterName, setInviterName] = useState("")
   const [isLoading, setIsLoading] = useState(false)
@@ -79,6 +80,7 @@ const AddVisitorScreen: React.FC<Props> = ({ navigation, route }) => {
         first_name: firstName.trim(),
         last_name: lastName.trim(),
         phone: phone.trim() || undefined,
+        location: location.trim() || undefined,
         email: email.trim() || undefined,
         inviter_name: inviterName.trim() || undefined,
         synced: false,
@@ -158,6 +160,18 @@ const AddVisitorScreen: React.FC<Props> = ({ navigation, route }) => {
                 onChangeText={setPhone}
                 placeholder="Enter phone number"
                 keyboardType="phone-pad"
+                editable={!isLoading}
+              />
+            </View>
+
+            <View style={styles.field}>
+              <Text style={styles.label}>Location</Text>
+              <TextInput
+                style={styles.input}
+                value={location}
+                onChangeText={setLocation}
+                placeholder="Enter location"
+                autoCapitalize="words"
                 editable={!isLoading}
               />
             </View>

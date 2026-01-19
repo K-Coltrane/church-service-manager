@@ -1,14 +1,14 @@
 "use client"
 
-import type React from "react"
-import { useState, useEffect } from "react"
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, ActivityIndicator } from "react-native"
 import { Picker } from "@react-native-picker/picker"
 import type { StackNavigationProp } from "@react-navigation/stack"
-import type { RootStackParamList } from "../../navigation/AppNavigator"
-import { databaseService, type ServiceType } from "../../services/database"
-import { apiService } from "../../services/api"
+import type React from "react"
+import { useEffect, useState } from "react"
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native"
 import { v4 as uuidv4 } from "uuid"
+import type { RootStackParamList } from "../../navigation/AppNavigator"
+import { apiService } from "../../services/api"
+import { databaseService, type ServiceType } from "../../services/database"
 
 type StartServiceScreenNavigationProp = StackNavigationProp<RootStackParamList, "StartService">
 
@@ -19,7 +19,7 @@ interface Props {
 const StartServiceScreen: React.FC<Props> = ({ navigation }) => {
   const [serviceTypes, setServiceTypes] = useState<ServiceType[]>([])
   const [selectedServiceType, setSelectedServiceType] = useState<number | null>(null)
-  const [location, setLocation] = useState("")
+  const [name, setName] = useState("")
   const [notes, setNotes] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingTypes, setIsLoadingTypes] = useState(true)
@@ -43,9 +43,9 @@ const StartServiceScreen: React.FC<Props> = ({ navigation }) => {
           // If API fails (backend unavailable or network error), use default types silently
           const defaultTypes = [
             { id: 1, name: "Sunday Morning Service" },
-            { id: 2, name: "Sunday Evening Service" },
-            { id: 3, name: "Wednesday Prayer Meeting" },
-            { id: 4, name: "Special Event" },
+            { id: 2, name: "Midweek Service" },
+            { id: 3, name: "Friday Prayer Meeting" },
+            { id: 4, name: "Special Service" },
           ]
           await databaseService.saveServiceTypes(defaultTypes)
           types = defaultTypes
@@ -77,7 +77,7 @@ const StartServiceScreen: React.FC<Props> = ({ navigation }) => {
         local_id: uuidv4(),
         service_type_id: selectedServiceType,
         service_type_name: selectedType?.name,
-        location: location.trim() || undefined,
+        name: name.trim() || undefined,
         notes: notes.trim() || undefined,
         started_at: new Date().toISOString(),
         synced: false,
@@ -126,13 +126,12 @@ const StartServiceScreen: React.FC<Props> = ({ navigation }) => {
           </View>
 
           <View style={styles.field}>
-            <Text style={styles.label}>Location</Text>
+            <Text style={styles.label}>Name of Service</Text>
             <TextInput
               style={styles.input}
-              value={location}
-              onChangeText={setLocation}
-              placeholder="e.g., Main Sanctuary, Fellowship Hall"
-              multiline
+              value={name}
+              onChangeText={setName}
+              placeholder="e.g., Take Over 1.0"
             />
           </View>
 

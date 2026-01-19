@@ -19,6 +19,8 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.churchservice.manager",
+      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#FFFFFF"
