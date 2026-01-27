@@ -28,32 +28,44 @@ interface Props {
   route: AddVisitorScreenRouteProp
 }
 
+type StatusOption = "Single" | "Married" | "Working Class" | "Student"
+
 const AddVisitorScreen: React.FC<Props> = ({ navigation, route }) => {
   const { serviceId } = route.params
-  const [firstName, setFirstName] = useState("")
-  const [lastName, setLastName] = useState("")
+  const [name, setName] = useState("")
   const [phone, setPhone] = useState("")
   const [location, setLocation] = useState("")
   const [email, setEmail] = useState("")
+  const [status, setStatus] = useState<StatusOption[]>([])
+  const [level, setLevel] = useState("")
   const [inviterName, setInviterName] = useState("")
   const [isLoading, setIsLoading] = useState(false)
 
+  const toggleStatus = (option: StatusOption) => {
+    setStatus((prev) => {
+      if (prev.includes(option)) {
+        return prev.filter((s) => s !== option)
+      } else {
+        return [...prev, option]
+      }
+    })
+  }
+
   const handleSaveAndCheckIn = async () => {
-    if (!firstName.trim() || !lastName.trim()) {
-      Alert.alert("Error", "First name and last name are required")
+    if (!name.trim()) {
+      Alert.alert("Error", "Name is required")
       return
     }
 
     setIsLoading(true)
     try {
       // Check for existing visitor
-      const searchQuery = `${firstName.trim()} ${lastName.trim()}`
+      const searchQuery = name.trim()
       const existingVisitors = await databaseService.searchVisitors(searchQuery)
 
       const exactMatch = existingVisitors.find(
         (v) =>
-          v.first_name.toLowerCase() === firstName.trim().toLowerCase() &&
-          v.last_name.toLowerCase() === lastName.trim().toLowerCase() &&
+          v.first_name.toLowerCase() === name.trim().toLowerCase() &&
           v.phone === phone.trim(),
       )
 
@@ -75,12 +87,17 @@ const AddVisitorScreen: React.FC<Props> = ({ navigation, route }) => {
       }
 
       // Create new visitor
+      // Store full name in first_name
+      // Store status, location, and level in last_name (format: "status1,status2|location|level")
+      const statusStr = status.length > 0 ? status.join(",") : ""
+      const locationLevel = [location.trim(), level.trim()].filter(Boolean).join("|")
+      const lastNameData = [statusStr, locationLevel].filter(Boolean).join("|") || ""
+      
       const visitorData = {
         local_id: uuidv4(),
-        first_name: firstName.trim(),
-        last_name: lastName.trim(),
+        first_name: name.trim(),
+        last_name: lastNameData,
         phone: phone.trim() || undefined,
-        location: location.trim() || undefined,
         email: email.trim() || undefined,
         inviter_name: inviterName.trim() || undefined,
         synced: false,
@@ -129,31 +146,19 @@ const AddVisitorScreen: React.FC<Props> = ({ navigation, route }) => {
 
           <View style={styles.form}>
             <View style={styles.field}>
-              <Text style={styles.label}>First Name *</Text>
+              <Text style={styles.label}>Name *</Text>
               <TextInput
                 style={styles.input}
-                value={firstName}
-                onChangeText={setFirstName}
-                placeholder="Enter first name"
+                value={name}
+                onChangeText={setName}
+                placeholder="Enter full name"
                 autoCapitalize="words"
                 editable={!isLoading}
               />
             </View>
 
             <View style={styles.field}>
-              <Text style={styles.label}>Last Name *</Text>
-              <TextInput
-                style={styles.input}
-                value={lastName}
-                onChangeText={setLastName}
-                placeholder="Enter last name"
-                autoCapitalize="words"
-                editable={!isLoading}
-              />
-            </View>
-
-            <View style={styles.field}>
-              <Text style={styles.label}>Phone</Text>
+              <Text style={styles.label}>Number</Text>
               <TextInput
                 style={styles.input}
                 value={phone}
@@ -186,6 +191,37 @@ const AddVisitorScreen: React.FC<Props> = ({ navigation, route }) => {
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
+                editable={!isLoading}
+              />
+            </View>
+
+            <View style={styles.field}>
+              <Text style={styles.label}>Status</Text>
+              <View style={styles.checkboxContainer}>
+                {(["Single", "Married", "Working Class", "Student"] as StatusOption[]).map((option) => (
+                  <TouchableOpacity
+                    key={option}
+                    style={styles.checkboxRow}
+                    onPress={() => toggleStatus(option)}
+                    disabled={isLoading}
+                  >
+                    <View style={[styles.checkbox, status.includes(option) && styles.checkboxChecked]}>
+                      {status.includes(option) && <Text style={styles.checkmark}>✓</Text>}
+                    </View>
+                    <Text style={styles.checkboxLabel}>{option}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            <View style={styles.field}>
+              <Text style={styles.label}>Level</Text>
+              <TextInput
+                style={styles.input}
+                value={level}
+                onChangeText={setLevel}
+                placeholder="Enter level"
+                autoCapitalize="words"
                 editable={!isLoading}
               />
             </View>
@@ -271,6 +307,36 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 18,
     fontWeight: "600",
+  },
+  checkboxContainer: {
+    gap: 12,
+  },
+  checkboxRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderWidth: 2,
+    borderColor: "#6366f1",
+    borderRadius: 4,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#fff",
+  },
+  checkboxChecked: {
+    backgroundColor: "#6366f1",
+  },
+  checkmark: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  checkboxLabel: {
+    fontSize: 16,
+    color: "#374151",
   },
 })
 
