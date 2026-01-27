@@ -87,18 +87,14 @@ const AddVisitorScreen: React.FC<Props> = ({ navigation, route }) => {
       }
 
       // Create new visitor
-      // Store full name in first_name
-      // Store status, location, and level in last_name (format: "status1,status2|location|level")
-      const statusStr = status.length > 0 ? status.join(",") : ""
-      const locationLevel = [location.trim(), level.trim()].filter(Boolean).join("|")
-      const lastNameData = [statusStr, locationLevel].filter(Boolean).join("|") || ""
-      
       const visitorData = {
         local_id: uuidv4(),
         first_name: name.trim(),
-        last_name: lastNameData,
         phone: phone.trim() || undefined,
         email: email.trim() || undefined,
+        location: location.trim() || undefined,
+        status: status.length > 0 ? status.join(",") : undefined,
+        level: level.trim() || undefined,
         inviter_name: inviterName.trim() || undefined,
         synced: false,
         created_at: new Date().toISOString(),

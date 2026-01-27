@@ -34,9 +34,12 @@ export interface Visitor {
   id?: number
   local_id: string
   first_name: string
-  last_name: string
+  last_name?: string
   phone?: string
   email?: string
+  location?: string
+  status?: string
+  level?: string
   inviter_name?: string
   synced: boolean
   remote_id?: number
@@ -75,9 +78,12 @@ interface VisitorRow {
   id: number
   local_id: string
   first_name: string
-  last_name: string
+  last_name: string | null
   phone: string | null
   email: string | null
+  location: string | null
+  status: string | null
+  level: string | null
   inviter_name: string | null
   synced: number
   remote_id: number | null
@@ -133,15 +139,21 @@ class DatabaseService {
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           local_id TEXT UNIQUE NOT NULL,
           first_name TEXT NOT NULL,
-          last_name TEXT NOT NULL,
+          last_name TEXT,
           phone TEXT,
           email TEXT,
+          location TEXT,
+          status TEXT,
+          level TEXT,
           inviter_name TEXT,
           synced INTEGER DEFAULT 0,
           remote_id INTEGER,
           created_at TEXT NOT NULL
         );
       `)
+
+      // Migrate existing tables to add new columns if they don't exist
+      this.migrateDatabase()
 
       // Attendance table
       this.database.execSync(`
@@ -171,6 +183,43 @@ class DatabaseService {
     } catch (error) {
       console.error("❌ Database initialization error:", error)
       throw error // Re-throw to ensure we know if initialization fails
+    }
+  }
+
+  private migrateDatabase() {
+    try {
+      if (!this.database) {
+        return // Database not initialized yet
+      }
+      
+      // Check if columns exist and add them if they don't
+      const tableInfo = this.database.getAllSync("PRAGMA table_info(visitors)") as Array<{ name: string }>
+      const columnNames = tableInfo.map((col) => col.name)
+
+      // Add location column if it doesn't exist
+      if (!columnNames.includes("location")) {
+        this.database.execSync("ALTER TABLE visitors ADD COLUMN location TEXT")
+        console.log("✅ Added location column to visitors table")
+      }
+
+      // Add status column if it doesn't exist
+      if (!columnNames.includes("status")) {
+        this.database.execSync("ALTER TABLE visitors ADD COLUMN status TEXT")
+        console.log("✅ Added status column to visitors table")
+      }
+
+      // Add level column if it doesn't exist
+      if (!columnNames.includes("level")) {
+        this.database.execSync("ALTER TABLE visitors ADD COLUMN level TEXT")
+        console.log("✅ Added level column to visitors table")
+      }
+
+      // Make last_name nullable if it's currently NOT NULL
+      // Note: SQLite doesn't support modifying column constraints directly,
+      // but since we're creating new tables, this is handled in CREATE TABLE
+    } catch (error) {
+      console.error("❌ Database migration error:", error)
+      // Don't throw - migration errors shouldn't prevent app from running
     }
   }
 
@@ -262,21 +311,24 @@ class DatabaseService {
       try {
         const database = this.getDb()
         const result = database.runSync(
-          `INSERT INTO visitors (local_id, first_name, last_name, phone, email, inviter_name, synced, created_at) 
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO visitors (local_id, first_name, last_name, phone, email, location, status, level, inviter_name, synced, created_at) 
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             visitor.local_id,
             visitor.first_name,
-            visitor.last_name,
-            visitor.phone || null, // Handle undefined values
+            visitor.last_name || null,
+            visitor.phone || null,
             visitor.email || null,
+            visitor.location || null,
+            visitor.status || null,
+            visitor.level || null,
             visitor.inviter_name || null,
             visitor.synced ? 1 : 0,
             visitor.created_at,
           ],
         )
         const savedVisitor = { ...visitor, id: result.lastInsertRowId }
-        console.log(`💾 Visitor saved locally: ${visitor.local_id} - ${visitor.first_name} ${visitor.last_name} (synced: ${visitor.synced})`)
+        console.log(`💾 Visitor saved locally: ${visitor.local_id} - ${visitor.first_name} (synced: ${visitor.synced})`)
         resolve(savedVisitor)
       } catch (error) {
         console.error("❌ Create visitor error:", error)
@@ -291,7 +343,7 @@ class DatabaseService {
         const database = this.getDb()
         const results = database.getAllSync(
           `SELECT * FROM visitors 
-           WHERE first_name LIKE ? OR last_name LIKE ? OR phone LIKE ?
+           WHERE first_name LIKE ? OR COALESCE(last_name, '') LIKE ? OR phone LIKE ?
            ORDER BY created_at DESC`,
           [`%${query}%`, `%${query}%`, `%${query}%`],
         ) as VisitorRow[]
@@ -301,9 +353,12 @@ class DatabaseService {
             id: row.id,
             local_id: row.local_id,
             first_name: row.first_name,
-            last_name: row.last_name,
+            last_name: row.last_name || undefined,
             phone: row.phone || undefined,
             email: row.email || undefined,
+            location: row.location || undefined,
+            status: row.status || undefined,
+            level: row.level || undefined,
             inviter_name: row.inviter_name || undefined,
             synced: row.synced === 1,
             remote_id: row.remote_id || undefined,
@@ -350,14 +405,23 @@ class DatabaseService {
       try {
         const database = this.getDb()
         const results = database.getAllSync(
-          `SELECT a.*, v.first_name, v.last_name, v.phone, v.email 
+          `SELECT a.*, v.first_name, v.last_name, v.phone, v.email, v.location, v.status, v.level, v.inviter_name 
            FROM attendance a 
            JOIN visitors v ON a.visitor_local_id = v.local_id 
            WHERE a.service_local_id = ? 
            ORDER BY a.checked_in_at DESC`,
           [serviceLocalId],
         ) as Array<
-          AttendanceRow & { first_name: string; last_name: string; phone: string | null; email: string | null }
+          AttendanceRow & { 
+            first_name: string
+            last_name: string | null
+            phone: string | null
+            email: string | null
+            location: string | null
+            status: string | null
+            level: string | null
+            inviter_name: string | null
+          }
         >
 
         const attendance = results.map((row) => ({
@@ -371,9 +435,13 @@ class DatabaseService {
           visitor: {
             local_id: row.visitor_local_id,
             first_name: row.first_name,
-            last_name: row.last_name,
+            last_name: row.last_name || undefined,
             phone: row.phone || undefined,
             email: row.email || undefined,
+            location: row.location || undefined,
+            status: row.status || undefined,
+            level: row.level || undefined,
+            inviter_name: row.inviter_name || undefined,
             synced: true,
             created_at: "",
           },
@@ -393,8 +461,8 @@ class DatabaseService {
         const database = this.getDb()
         const results = database.getAllSync(
           `SELECT a.*, 
-                  v.first_name, v.last_name, v.phone, v.email,
-                  s.service_type_name, s.location, s.started_at
+                  v.first_name, v.last_name, v.phone, v.email, v.location, v.status, v.level, v.inviter_name,
+                  s.service_type_name, s.location as service_location, s.started_at
            FROM attendance a 
            JOIN visitors v ON a.visitor_local_id = v.local_id 
            JOIN services s ON a.service_local_id = s.local_id
@@ -404,11 +472,15 @@ class DatabaseService {
         ) as Array<
           AttendanceRow & {
             first_name: string
-            last_name: string
+            last_name: string | null
             phone: string | null
             email: string | null
-            service_type_name: string | null
             location: string | null
+            status: string | null
+            level: string | null
+            inviter_name: string | null
+            service_type_name: string | null
+            service_location: string | null
             started_at: string
           }
         >
@@ -424,9 +496,13 @@ class DatabaseService {
           visitor: {
             local_id: row.visitor_local_id,
             first_name: row.first_name,
-            last_name: row.last_name,
+            last_name: row.last_name || undefined,
             phone: row.phone || undefined,
             email: row.email || undefined,
+            location: row.location || undefined,
+            status: row.status || undefined,
+            level: row.level || undefined,
+            inviter_name: row.inviter_name || undefined,
             synced: true,
             created_at: "",
           },
@@ -434,7 +510,7 @@ class DatabaseService {
             local_id: row.service_local_id,
             service_type_id: 0,
             service_type_name: row.service_type_name || undefined,
-            location: row.location || undefined,
+            location: row.service_location || undefined,
             started_at: row.started_at,
             synced: true,
           },
@@ -518,9 +594,12 @@ class DatabaseService {
             id: row.id,
             local_id: row.local_id,
             first_name: row.first_name,
-            last_name: row.last_name,
+            last_name: row.last_name || undefined,
             phone: row.phone || undefined,
             email: row.email || undefined,
+            location: row.location || undefined,
+            status: row.status || undefined,
+            level: row.level || undefined,
             inviter_name: row.inviter_name || undefined,
             synced: false,
             remote_id: row.remote_id || undefined,
@@ -638,9 +717,12 @@ class DatabaseService {
             id: result.id,
             local_id: result.local_id,
             first_name: result.first_name,
-            last_name: result.last_name,
+            last_name: result.last_name || undefined,
             phone: result.phone || undefined,
             email: result.email || undefined,
+            location: result.location || undefined,
+            status: result.status || undefined,
+            level: result.level || undefined,
             inviter_name: result.inviter_name || undefined,
             synced: result.synced === 1,
             remote_id: result.remote_id || undefined,

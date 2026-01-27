@@ -18,7 +18,8 @@ interface Props {
 
 const StartServiceScreen: React.FC<Props> = ({ navigation }) => {
   const [serviceTypes, setServiceTypes] = useState<ServiceType[]>([])
-  const [selectedServiceType, setSelectedServiceType] = useState<number | null>(null)
+  // 0 means "no selection" – used for the placeholder option in the picker
+  const [selectedServiceType, setSelectedServiceType] = useState<number>(0)
   const [name, setName] = useState("")
   const [notes, setNotes] = useState("")
   const [isLoading, setIsLoading] = useState(false)
@@ -30,6 +31,14 @@ const StartServiceScreen: React.FC<Props> = ({ navigation }) => {
 
   const loadServiceTypes = async () => {
     try {
+      // Default service types that should always be available
+      const defaultTypes = [
+        { id: 1, name: "Sunday Morning Service" },
+        { id: 2, name: "Midweek Service" },
+        { id: 3, name: "Prayer Intense" },
+        { id: 4, name: "Special Program" },
+      ]
+
       // Try to load from local database first
       let types = await databaseService.getServiceTypes()
 
@@ -37,25 +46,23 @@ const StartServiceScreen: React.FC<Props> = ({ navigation }) => {
         // If no local types, try to fetch from API
         try {
           const remoteTypes = await apiService.getServiceTypes()
-          await databaseService.saveServiceTypes(remoteTypes)
-          types = remoteTypes
+          if (remoteTypes.length > 0) {
+            await databaseService.saveServiceTypes(remoteTypes)
+            types = remoteTypes
+          } else {
+            // If API returns empty, use defaults
+            await databaseService.saveServiceTypes(defaultTypes)
+            types = defaultTypes
+          }
         } catch (error: any) {
-          // If API fails (backend unavailable or network error), use default types silently
-          const defaultTypes = [
-            { id: 1, name: "Sunday Morning Service" },
-            { id: 2, name: "Midweek Service" },
-            { id: 3, name: "Friday Prayer Meeting" },
-            { id: 4, name: "Special Service" },
-          ]
+          // If API fails (backend unavailable or network error), use default types
           await databaseService.saveServiceTypes(defaultTypes)
           types = defaultTypes
         }
       }
 
       setServiceTypes(types)
-      if (types.length > 0) {
-        setSelectedServiceType(types[0].id)
-      }
+      // Leave selectedServiceType as 0 so the placeholder shows until user chooses
     } catch (error) {
       console.error("Error loading service types:", error)
       Alert.alert("Error", "Failed to load service types")
@@ -117,12 +124,28 @@ const StartServiceScreen: React.FC<Props> = ({ navigation }) => {
           <View style={styles.field}>
             <Text style={styles.label}>Service Type *</Text>
             <View style={styles.pickerContainer}>
-              <Picker selectedValue={selectedServiceType} onValueChange={setSelectedServiceType} style={styles.picker}>
+              <Picker
+                selectedValue={selectedServiceType}
+                onValueChange={(value) => setSelectedServiceType(value)}
+                style={styles.picker}
+                dropdownIconColor="#6366f1"
+              >
+                <Picker.Item label="Select service type..." value={0} color="#9ca3af" />
                 {serviceTypes.map((type) => (
-                  <Picker.Item key={type.id} label={type.name} value={type.id} />
+                  <Picker.Item 
+                    key={type.id} 
+                    label={type.name} 
+                    value={type.id}
+                    color="#1e293b"
+                  />
                 ))}
               </Picker>
             </View>
+            {selectedServiceType !== 0 && (
+              <Text style={styles.selectedServiceType}>
+                Selected: {serviceTypes.find(t => t.id === selectedServiceType)?.name}
+              </Text>
+            )}
           </View>
 
           <View style={styles.field}>
@@ -201,9 +224,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#e2e8f0",
     borderRadius: 8,
+    overflow: "hidden",
   },
   picker: {
     height: 50,
+    color: "#1e293b",
+  },
+  selectedServiceType: {
+    marginTop: 8,
+    fontSize: 14,
+    color: "#6366f1",
+    fontWeight: "600",
   },
   input: {
     backgroundColor: "#fff",
