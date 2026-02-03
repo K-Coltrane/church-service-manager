@@ -1,19 +1,17 @@
 "use client"
 
-import type React from "react"
-import { useState, useCallback } from "react"
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  RefreshControl,
-  FlatList,
-} from "react-native"
 import { useFocusEffect } from "@react-navigation/native"
 import type { StackNavigationProp } from "@react-navigation/stack"
+import React, { useCallback, useState } from "react"
+import {
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native"
 import type { RootStackParamList } from "../navigation/AppNavigator"
-import { databaseService, type Attendance, type Visitor, type Service } from "../services/database"
+import { databaseService, type Attendance, type Service, type Visitor } from "../services/database"
 
 type RecentCheckInsScreenNavigationProp = StackNavigationProp<RootStackParamList, "RecentCheckIns">
 
@@ -123,26 +121,31 @@ const RecentCheckInsScreen: React.FC<Props> = ({ navigation }) => {
       </View>
 
       <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={true}
         style={styles.scrollView}
+        showsVerticalScrollIndicator={true}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        nestedScrollEnabled
       >
-        <View style={styles.tableContainer}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={true}
+          nestedScrollEnabled
+        >
+          <View style={styles.tableContainer}>
           {renderTableHeader()}
           {checkIns.length > 0 ? (
-            <FlatList
-              data={checkIns}
-              renderItem={({ item, index }) => renderCheckInRow({ item, index })}
-              keyExtractor={(item) => item.local_id}
-              scrollEnabled={false}
-            />
+            checkIns.map((item, index) => (
+              <React.Fragment key={item.local_id}>
+                {renderCheckInRow({ item, index })}
+              </React.Fragment>
+            ))
           ) : (
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyText}>No check-ins found</Text>
             </View>
           )}
-        </View>
+          </View>
+        </ScrollView>
       </ScrollView>
     </View>
   )
