@@ -1,14 +1,16 @@
 "use client"
 
+import type { RouteProp } from "@react-navigation/native"
+import type { StackNavigationProp } from "@react-navigation/stack"
 import type React from "react"
 import { useState } from "react"
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, FlatList, ActivityIndicator } from "react-native"
-import type { StackNavigationProp } from "@react-navigation/stack"
-import type { RouteProp } from "@react-navigation/native"
-import type { RootStackParamList } from "../../navigation/AppNavigator"
-import { databaseService, type Visitor } from "../../services/database"
-import { apiService } from "../../services/api"
+import { ActivityIndicator, Alert, FlatList, StyleSheet, Text, TextInput, View } from "react-native"
 import { v4 as uuidv4 } from "uuid"
+import AppButton from "../../components/ui/AppButton"
+import type { RootStackParamList } from "../../navigation/AppNavigator"
+import { apiService } from "../../services/api"
+import { databaseService, type Visitor } from "../../services/database"
+import { colors, radii, shadowSoft, spacing, typography } from "../../theme/modernTheme"
 
 type SearchVisitorScreenNavigationProp = StackNavigationProp<RootStackParamList, "SearchVisitor">
 type SearchVisitorScreenRouteProp = RouteProp<RootStackParamList, "SearchVisitor">
@@ -35,17 +37,14 @@ const SearchVisitorScreen: React.FC<Props> = ({ navigation, route }) => {
     setHasSearched(true)
 
     try {
-      // Search local database first
       let results = await databaseService.searchVisitors(searchQuery.trim())
 
-      // If no local results and we have internet, try remote search
       if (results.length === 0) {
         try {
           const remoteResults = await apiService.searchVisitors(searchQuery.trim())
           results = remoteResults
-        } catch (error: any) {
-          // Remote search failed (backend unavailable), continue with local results silently
-          // Don't log network errors to reduce console noise
+        } catch {
+          // Remote search failed — keep local results
         }
       }
 
@@ -84,52 +83,49 @@ const SearchVisitorScreen: React.FC<Props> = ({ navigation, route }) => {
 
   const renderVisitorItem = ({ item }: { item: Visitor }) => (
     <View style={styles.visitorItem}>
-      <View style={styles.visitorInfo}>
-        <Text style={styles.visitorName}>
-          {item.first_name} {item.last_name}
-        </Text>
-        {item.phone && <Text style={styles.visitorPhone}>{item.phone}</Text>}
-        {item.email && <Text style={styles.visitorEmail}>{item.email}</Text>}
+      <View style={styles.visitorAccent} />
+      <View style={styles.visitorBody}>
+        <View style={styles.visitorInfo}>
+          <Text style={styles.visitorName}>
+            {item.first_name} {item.last_name}
+          </Text>
+          {item.phone ? <Text style={styles.visitorPhone}>{item.phone}</Text> : null}
+          {item.email ? <Text style={styles.visitorEmail}>{item.email}</Text> : null}
+        </View>
+        <AppButton title="Check in" onPress={() => handleCheckIn(item)} variant="success" style={styles.checkInBtn} />
       </View>
-      <TouchableOpacity style={styles.checkInButton} onPress={() => handleCheckIn(item)}>
-        <Text style={styles.checkInButtonText}>Check In</Text>
-      </TouchableOpacity>
     </View>
   )
 
   return (
     <View style={styles.container}>
       <View style={styles.searchSection}>
-        <Text style={styles.title}>Search Existing Visitor</Text>
-
+        <Text style={styles.heroEyebrow}>Lookup</Text>
+        <Text style={styles.title}>Find a visitor</Text>
         <View style={styles.searchForm}>
           <TextInput
             style={styles.searchInput}
             value={searchQuery}
             onChangeText={setSearchQuery}
-            placeholder="Enter name or phone number"
+            placeholder="Name or phone"
+            placeholderTextColor={colors.textMuted}
             autoCapitalize="words"
             onSubmitEditing={handleSearch}
           />
-
-          <TouchableOpacity
-            style={[styles.searchButton, isSearching && styles.searchButtonDisabled]}
+          <AppButton
+            title="Search"
             onPress={handleSearch}
+            loading={isSearching}
             disabled={isSearching}
-          >
-            {isSearching ? (
-              <ActivityIndicator color="#fff" size="small" />
-            ) : (
-              <Text style={styles.searchButtonText}>Search</Text>
-            )}
-          </TouchableOpacity>
+            style={styles.searchBtn}
+          />
         </View>
       </View>
 
       <View style={styles.resultsSection}>
         {isSearching ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#6366f1" />
+            <ActivityIndicator size="large" color={colors.primary} />
             <Text style={styles.loadingText}>Searching...</Text>
           </View>
         ) : hasSearched ? (
@@ -138,23 +134,19 @@ const SearchVisitorScreen: React.FC<Props> = ({ navigation, route }) => {
               data={visitors}
               renderItem={renderVisitorItem}
               keyExtractor={(item) => item.local_id}
-              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.listContent}
+              showsVerticalScrollIndicator
             />
           ) : (
             <View style={styles.noResultsContainer}>
               <Text style={styles.noResultsText}>No visitors found</Text>
-              <Text style={styles.noResultsSubtext}>Try a different search term or add a new visitor</Text>
-              <TouchableOpacity
-                style={styles.addNewButton}
-                onPress={() => navigation.navigate("AddVisitor", { serviceId })}
-              >
-                <Text style={styles.addNewButtonText}>Add New Visitor</Text>
-              </TouchableOpacity>
+              <Text style={styles.noResultsSubtext}>Try another term or add someone new.</Text>
+              <AppButton title="Add new visitor" onPress={() => navigation.navigate("AddVisitor", { serviceId })} />
             </View>
           )
         ) : (
           <View style={styles.instructionsContainer}>
-            <Text style={styles.instructionsText}>Enter a name or phone number to search for existing visitors</Text>
+            <Text style={styles.instructionsText}>Search by name or phone to check in an existing visitor.</Text>
           </View>
         )}
       </View>
@@ -165,54 +157,56 @@ const SearchVisitorScreen: React.FC<Props> = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f8fafc",
+    backgroundColor: colors.canvas,
   },
   searchSection: {
-    backgroundColor: "#fff",
-    padding: 20,
+    backgroundColor: colors.surface,
+    padding: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: "#e2e8f0",
+    borderBottomColor: colors.border,
+    ...shadowSoft,
+  },
+  heroEyebrow: {
+    ...typography.small,
+    color: colors.cyan,
+    textTransform: "uppercase",
+    letterSpacing: 1,
+    marginBottom: spacing.xs,
   },
   title: {
     fontSize: 24,
-    fontWeight: "bold",
-    color: "#1e293b",
-    marginBottom: 20,
+    fontWeight: "800",
+    color: colors.text,
+    marginBottom: spacing.md,
+    letterSpacing: -0.3,
   },
   searchForm: {
     flexDirection: "row",
-    gap: 12,
+    gap: spacing.sm,
+    alignItems: "stretch",
   },
   searchInput: {
     flex: 1,
-    backgroundColor: "#f8fafc",
+    backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
-    borderColor: "#e2e8f0",
-    borderRadius: 8,
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 14,
+    fontSize: 16,
+    color: colors.text,
+    minHeight: 52,
+  },
+  searchBtn: {
+    minWidth: 108,
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
-  },
-  searchButton: {
-    backgroundColor: "#6366f1",
-    borderRadius: 8,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    justifyContent: "center",
-    alignItems: "center",
-    minWidth: 80,
-  },
-  searchButtonDisabled: {
-    opacity: 0.6,
-  },
-  searchButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
   },
   resultsSection: {
     flex: 1,
-    padding: 20,
+    padding: spacing.md,
+  },
+  listContent: {
+    paddingBottom: spacing.xl,
   },
   loadingContainer: {
     flex: 1,
@@ -220,90 +214,83 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: "#64748b",
+    marginTop: spacing.md,
+    ...typography.body,
+    color: colors.textSecondary,
   },
   visitorItem: {
-    backgroundColor: "#fff",
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 12,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    borderRadius: radii.lg,
+    marginBottom: spacing.md,
+    overflow: "hidden",
+    backgroundColor: colors.surface,
+    ...shadowSoft,
     borderWidth: 1,
-    borderColor: "#e2e8f0",
+    borderColor: colors.borderLight,
+  },
+  visitorAccent: {
+    height: 3,
+    backgroundColor: colors.mint,
+  },
+  visitorBody: {
+    padding: spacing.md,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
   },
   visitorInfo: {
     flex: 1,
+    minWidth: 0,
   },
   visitorName: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#1e293b",
+    ...typography.subtitle,
+    color: colors.text,
     marginBottom: 4,
   },
   visitorPhone: {
-    fontSize: 14,
-    color: "#64748b",
+    ...typography.caption,
+    color: colors.textSecondary,
     marginBottom: 2,
   },
   visitorEmail: {
-    fontSize: 14,
-    color: "#64748b",
+    ...typography.caption,
+    color: colors.textMuted,
   },
-  checkInButton: {
-    backgroundColor: "#10b981",
-    borderRadius: 6,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  checkInButtonText: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "600",
+  checkInBtn: {
+    flexShrink: 0,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    minHeight: 44,
   },
   noResultsContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 40,
+    paddingHorizontal: spacing.lg,
   },
   noResultsText: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#1e293b",
-    marginBottom: 8,
+    ...typography.title,
+    color: colors.text,
+    marginBottom: spacing.xs,
     textAlign: "center",
   },
   noResultsSubtext: {
-    fontSize: 14,
-    color: "#64748b",
+    ...typography.body,
+    color: colors.textSecondary,
     textAlign: "center",
-    marginBottom: 24,
-  },
-  addNewButton: {
-    backgroundColor: "#6366f1",
-    borderRadius: 8,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-  },
-  addNewButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
+    marginBottom: spacing.lg,
+    lineHeight: 22,
   },
   instructionsContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 40,
+    paddingHorizontal: spacing.lg,
   },
   instructionsText: {
-    fontSize: 16,
-    color: "#64748b",
+    ...typography.body,
+    color: colors.textSecondary,
     textAlign: "center",
+    lineHeight: 22,
   },
 })
 

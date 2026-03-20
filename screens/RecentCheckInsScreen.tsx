@@ -4,14 +4,15 @@ import { useFocusEffect } from "@react-navigation/native"
 import type { StackNavigationProp } from "@react-navigation/stack"
 import React, { useCallback, useState } from "react"
 import {
+  FlatList,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native"
 import type { RootStackParamList } from "../navigation/AppNavigator"
 import { databaseService, type Attendance, type Service, type Visitor } from "../services/database"
+import { colors, radii, shadowCard, shadowSoft, spacing, typography } from "../theme/modernTheme"
 
 type RecentCheckInsScreenNavigationProp = StackNavigationProp<RootStackParamList, "RecentCheckIns">
 
@@ -24,7 +25,7 @@ interface CheckInRecord extends Attendance {
   service: Service
 }
 
-const RecentCheckInsScreen: React.FC<Props> = ({ navigation }) => {
+const RecentCheckInsScreen: React.FC<Props> = ({ navigation: _navigation }: Props) => {
   const [checkIns, setCheckIns] = useState<CheckInRecord[]>([])
   const [refreshing, setRefreshing] = useState(false)
 
@@ -67,195 +68,238 @@ const RecentCheckInsScreen: React.FC<Props> = ({ navigation }) => {
     })
   }
 
-  const renderTableHeader = () => (
-    <View style={styles.tableHeader}>
-      <View style={[styles.headerCell, styles.nameCell]}>
-        <Text style={styles.headerText}>Name</Text>
+  const renderItem = ({ item, index }: { item: CheckInRecord; index: number }) => {
+    const fullName = `${item.visitor.first_name} ${item.visitor.last_name}`.trim()
+    return (
+      <View style={[styles.card, index === 0 && styles.cardFirst]}>
+        <View style={styles.cardAccent} />
+        <View style={styles.cardBody}>
+          <Text style={styles.name}>{fullName || "—"}</Text>
+          <View style={styles.metaRow}>
+            <View style={[styles.chip, styles.chipCyan]}>
+              <Text style={styles.chipLabel}>Phone</Text>
+              <Text style={styles.chipValue} numberOfLines={1}>
+                {item.visitor.phone || "—"}
+              </Text>
+            </View>
+            <View style={[styles.chip, styles.chipMint]}>
+              <Text style={styles.chipLabel}>Service</Text>
+              <Text style={styles.chipValue} numberOfLines={2}>
+                {item.service.service_type_name || "—"}
+              </Text>
+            </View>
+          </View>
+          <View style={styles.footerRow}>
+            <View style={styles.datePill}>
+              <Text style={styles.datePillText}>{formatDate(item.checked_in_at)}</Text>
+            </View>
+            <Text style={styles.timeText}>{formatTime(item.checked_in_at)}</Text>
+          </View>
+        </View>
       </View>
-      <View style={[styles.headerCell, styles.phoneCell]}>
-        <Text style={styles.headerText}>Phone</Text>
-      </View>
-      <View style={[styles.headerCell, styles.serviceCell]}>
-        <Text style={styles.headerText}>Service</Text>
-      </View>
-      <View style={[styles.headerCell, styles.dateCell]}>
-        <Text style={styles.headerText}>Date</Text>
-      </View>
-      <View style={[styles.headerCell, styles.timeCell]}>
-        <Text style={styles.headerText}>Time</Text>
+    )
+  }
+
+  const ListHeader = () => (
+    <View style={styles.hero}>
+      <Text style={styles.heroEyebrow}>Activity</Text>
+      <Text style={styles.heroTitle}>Recent check-ins</Text>
+      <View style={styles.statPill}>
+        <Text style={styles.statNumber}>{checkIns.length}</Text>
+        <Text style={styles.statLabel}>total records</Text>
       </View>
     </View>
   )
 
-  const renderCheckInRow = ({ item, index }: { item: CheckInRecord; index: number }) => (
-    <View style={[styles.tableRow, index % 2 === 1 && styles.tableRowAlt]}>
-      <View style={[styles.cell, styles.nameCell]}>
-        <Text style={styles.cellText} numberOfLines={1}>
-          {item.visitor.first_name} {item.visitor.last_name}
-        </Text>
-      </View>
-      <View style={[styles.cell, styles.phoneCell]}>
-        <Text style={styles.cellText} numberOfLines={1}>
-          {item.visitor.phone || "-"}
-        </Text>
-      </View>
-      <View style={[styles.cell, styles.serviceCell]}>
-        <Text style={styles.cellText} numberOfLines={1}>
-          {item.service.service_type_name || "-"}
-        </Text>
-      </View>
-      <View style={[styles.cell, styles.dateCell]}>
-        <Text style={styles.cellText}>{formatDate(item.checked_in_at)}</Text>
-      </View>
-      <View style={[styles.cell, styles.timeCell]}>
-        <Text style={styles.cellText}>{formatTime(item.checked_in_at)}</Text>
+  const ListEmpty = () => (
+    <View style={styles.emptyWrap}>
+      <View style={styles.emptyCard}>
+        <Text style={styles.emptyTitle}>No check-ins yet</Text>
+        <Text style={styles.emptySub}>Start a service and check in visitors to see them here.</Text>
       </View>
     </View>
   )
 
   return (
-    <View style={styles.container}>
-      <View style={styles.summaryCard}>
-        <Text style={styles.summaryTitle}>Recent Check-ins</Text>
-        <Text style={styles.summaryCount}>Total: {checkIns.length}</Text>
-      </View>
-
-      <ScrollView
-        style={styles.scrollView}
-        showsVerticalScrollIndicator={true}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        nestedScrollEnabled
-      >
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={true}
-          nestedScrollEnabled
-        >
-          <View style={styles.tableContainer}>
-          {renderTableHeader()}
-          {checkIns.length > 0 ? (
-            checkIns.map((item, index) => (
-              <React.Fragment key={item.local_id}>
-                {renderCheckInRow({ item, index })}
-              </React.Fragment>
-            ))
-          ) : (
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>No check-ins found</Text>
-            </View>
-          )}
-          </View>
-        </ScrollView>
-      </ScrollView>
+    <View style={styles.screen}>
+      <FlatList
+        data={checkIns}
+        keyExtractor={(item) => item.local_id}
+        renderItem={renderItem}
+        ListHeaderComponent={ListHeader}
+        ListEmptyComponent={ListEmpty}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+        contentContainerStyle={[
+          styles.listContent,
+          checkIns.length === 0 && styles.listContentEmpty,
+        ]}
+        showsVerticalScrollIndicator
+        // Critical for web + native: single vertical scroll surface
+        style={styles.list}
+        keyboardShouldPersistTaps="handled"
+      />
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  container: {
+  screen: {
     flex: 1,
-    backgroundColor: "#f8fafc",
+    backgroundColor: colors.canvas,
   },
-  summaryCard: {
-    backgroundColor: "#fff",
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "#e2e8f0",
-  },
-  summaryTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#1e293b",
-    marginBottom: 8,
-  },
-  summaryCount: {
-    fontSize: 16,
-    color: "#64748b",
-  },
-  scrollView: {
+  list: {
     flex: 1,
   },
-  tableContainer: {
-    flex: 1,
-    backgroundColor: "#fff",
-    margin: 20,
-    borderRadius: 8,
+  listContent: {
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.xl * 2,
+    paddingTop: spacing.sm,
+  },
+  listContentEmpty: {
+    flexGrow: 1,
+  },
+  hero: {
+    marginBottom: spacing.lg,
+    padding: spacing.lg,
+    borderRadius: radii.xl,
+    backgroundColor: colors.surface,
+    ...shadowCard,
     borderWidth: 1,
-    borderColor: "#e2e8f0",
+    borderColor: colors.borderLight,
+  },
+  heroEyebrow: {
+    ...typography.small,
+    color: colors.cyan,
+    textTransform: "uppercase",
+    letterSpacing: 1.2,
+    marginBottom: spacing.xs,
+  },
+  heroTitle: {
+    ...typography.hero,
+    color: colors.text,
+    marginBottom: spacing.md,
+  },
+  statPill: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: 8,
+    alignSelf: "flex-start",
+    backgroundColor: colors.canvasAlt,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: radii.pill,
+  },
+  statNumber: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: colors.primary,
+  },
+  statLabel: {
+    ...typography.caption,
+    color: colors.textSecondary,
+  },
+  card: {
+    marginBottom: spacing.md,
+    borderRadius: radii.lg,
+    backgroundColor: colors.surface,
     overflow: "hidden",
+    ...shadowSoft,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
   },
-  tableHeader: {
+  cardFirst: {
+    marginTop: 0,
+  },
+  cardAccent: {
+    height: 4,
+    width: "100%",
+    backgroundColor: colors.primary,
+  },
+  cardBody: {
+    padding: spacing.md,
+  },
+  name: {
+    ...typography.title,
+    color: colors.text,
+    marginBottom: spacing.sm,
+  },
+  metaRow: {
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  chip: {
+    borderRadius: radii.md,
+    padding: spacing.sm,
+    borderWidth: 1,
+  },
+  chipCyan: {
+    backgroundColor: colors.cyanSoft,
+    borderColor: "#a5f3fc",
+  },
+  chipMint: {
+    backgroundColor: colors.mintSoft,
+    borderColor: "#a7f3d0",
+  },
+  chipLabel: {
+    ...typography.small,
+    color: colors.textMuted,
+    marginBottom: 2,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  chipValue: {
+    ...typography.body,
+    color: colors.text,
+  },
+  footerRow: {
     flexDirection: "row",
-    backgroundColor: "#6366f1",
-    borderBottomWidth: 2,
-    borderBottomColor: "#4f46e5",
-  },
-  headerCell: {
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    borderRightWidth: 1,
-    borderRightColor: "#4f46e5",
-    justifyContent: "center",
-  },
-  headerText: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "600",
-    textAlign: "center",
-  },
-  tableRow: {
-    flexDirection: "row",
-    borderBottomWidth: 1,
-    borderBottomColor: "#e2e8f0",
-    backgroundColor: "#fff",
-  },
-  tableRowAlt: {
-    backgroundColor: "#f8fafc",
-  },
-  cell: {
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    borderRightWidth: 1,
-    borderRightColor: "#e2e8f0",
-    justifyContent: "center",
-  },
-  cellText: {
-    fontSize: 13,
-    color: "#1e293b",
-    textAlign: "center",
-  },
-  nameCell: {
-    width: 150,
-    minWidth: 150,
-  },
-  phoneCell: {
-    width: 120,
-    minWidth: 120,
-  },
-  serviceCell: {
-    width: 180,
-    minWidth: 180,
-  },
-  dateCell: {
-    width: 110,
-    minWidth: 110,
-  },
-  timeCell: {
-    width: 90,
-    minWidth: 90,
-    borderRightWidth: 0,
-  },
-  emptyContainer: {
-    padding: 40,
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "space-between",
+    marginTop: spacing.xs,
   },
-  emptyText: {
-    fontSize: 16,
-    color: "#64748b",
+  datePill: {
+    backgroundColor: colors.coralSoft,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: "#fecdd3",
+  },
+  datePillText: {
+    ...typography.caption,
+    color: colors.coral,
+    fontWeight: "700",
+  },
+  timeText: {
+    ...typography.subtitle,
+    color: colors.textSecondary,
+  },
+  emptyWrap: {
+    flex: 1,
+    justifyContent: "center",
+    minHeight: 280,
+    paddingVertical: spacing.xl,
+  },
+  emptyCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.xl,
+    padding: spacing.xl,
+    alignItems: "center",
+    ...shadowSoft,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  emptyTitle: {
+    ...typography.title,
+    color: colors.text,
+    marginBottom: spacing.sm,
+  },
+  emptySub: {
+    ...typography.body,
+    color: colors.textSecondary,
     textAlign: "center",
+    lineHeight: 22,
   },
 })
 
 export default RecentCheckInsScreen
-

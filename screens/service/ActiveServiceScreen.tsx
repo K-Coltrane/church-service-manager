@@ -1,13 +1,15 @@
 "use client"
 
-import type React from "react"
-import { useState, useCallback } from "react"
-import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView, RefreshControl, FlatList } from "react-native"
+import type { RouteProp } from "@react-navigation/native"
 import { useFocusEffect } from "@react-navigation/native"
 import type { StackNavigationProp } from "@react-navigation/stack"
-import type { RouteProp } from "@react-navigation/native"
+import type React from "react"
+import { useCallback, useState } from "react"
+import { Alert, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native"
+import AppButton from "../../components/ui/AppButton"
 import type { RootStackParamList } from "../../navigation/AppNavigator"
-import { databaseService, type Service, type Attendance, type Visitor } from "../../services/database"
+import { databaseService, type Attendance, type Service, type Visitor } from "../../services/database"
+import { colors, radii, shadowCard, shadowSoft, spacing, typography } from "../../theme/modernTheme"
 
 type ActiveServiceScreenNavigationProp = StackNavigationProp<RootStackParamList, "ActiveService">
 type ActiveServiceScreenRouteProp = RouteProp<RootStackParamList, "ActiveService">
@@ -70,18 +72,6 @@ const ActiveServiceScreen: React.FC<Props> = ({ navigation, route }) => {
     ])
   }
 
-  const renderAttendeeItem = ({ item }: { item: Attendance & { visitor: Visitor } }) => (
-    <View style={styles.attendeeItem}>
-      <View style={styles.attendeeInfo}>
-        <Text style={styles.attendeeName}>
-          {item.visitor.first_name} {item.visitor.last_name}
-        </Text>
-        {item.visitor.phone && <Text style={styles.attendeePhone}>{item.visitor.phone}</Text>}
-      </View>
-      <Text style={styles.checkInTime}>{new Date(item.checked_in_at).toLocaleTimeString()}</Text>
-    </View>
-  )
-
   if (!service) {
     return (
       <View style={styles.loadingContainer}>
@@ -94,56 +84,58 @@ const ActiveServiceScreen: React.FC<Props> = ({ navigation, route }) => {
     <View style={styles.container}>
       <ScrollView
         style={styles.scrollView}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+        }
+        showsVerticalScrollIndicator
       >
-        <View style={styles.serviceInfo}>
+        <View style={styles.serviceCard}>
+          <View style={styles.cardAccent} />
           <Text style={styles.serviceType}>{service.service_type_name}</Text>
-          {service.location && <Text style={styles.serviceLocation}>{service.location}</Text>}
-          <Text style={styles.serviceTime}>Started: {new Date(service.started_at).toLocaleString()}</Text>
-          {service.notes && <Text style={styles.serviceNotes}>{service.notes}</Text>}
+          {service.location ? <Text style={styles.serviceMeta}>{service.location}</Text> : null}
+          <Text style={styles.serviceMeta}>Started {new Date(service.started_at).toLocaleString()}</Text>
+          {service.notes ? <Text style={styles.serviceNotes}>{service.notes}</Text> : null}
         </View>
 
-        <View style={styles.stats}>
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>{attendance.length}</Text>
-            <Text style={styles.statLabel}>Total Check-ins</Text>
-          </View>
+        <View style={styles.statCard}>
+          <Text style={styles.statNumber}>{attendance.length}</Text>
+          <Text style={styles.statLabel}>Check-ins this service</Text>
         </View>
 
         <View style={styles.actions}>
-          <TouchableOpacity
-            style={styles.primaryButton}
-            onPress={() => navigation.navigate("AddVisitor", { serviceId })}
-          >
-            <Text style={styles.primaryButtonText}>Add New Visitor</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.secondaryButton}
+          <AppButton title="Add new visitor" onPress={() => navigation.navigate("AddVisitor", { serviceId })} />
+          <AppButton
+            title="Check in existing visitor"
             onPress={() => navigation.navigate("SearchVisitor", { serviceId })}
-          >
-            <Text style={styles.secondaryButtonText}>Check In Existing Visitor</Text>
-          </TouchableOpacity>
+            variant="outline"
+          />
         </View>
 
-        <View style={styles.attendeesList}>
-          <Text style={styles.sectionTitle}>Recent Check-ins</Text>
-          {attendance.length > 0 ? (
-            <FlatList
-              data={attendance}
-              renderItem={renderAttendeeItem}
-              keyExtractor={(item) => item.local_id}
-              scrollEnabled={false}
-            />
-          ) : (
-            <Text style={styles.noAttendeesText}>No check-ins yet</Text>
-          )}
-        </View>
+        <Text style={styles.sectionTitle}>Recent check-ins</Text>
+        {attendance.length > 0 ? (
+          attendance.map((item) => (
+            <View key={item.local_id} style={styles.attendeeItem}>
+              <View style={styles.attendeeDot} />
+              <View style={styles.attendeeInfo}>
+                <Text style={styles.attendeeName}>
+                  {item.visitor.first_name} {item.visitor.last_name}
+                </Text>
+                {item.visitor.phone ? <Text style={styles.attendeePhone}>{item.visitor.phone}</Text> : null}
+              </View>
+              <Text style={styles.checkInTime}>{new Date(item.checked_in_at).toLocaleTimeString()}</Text>
+            </View>
+          ))
+        ) : (
+          <View style={styles.emptyHint}>
+            <Text style={styles.emptyHintText}>No check-ins yet — add or search for a visitor.</Text>
+          </View>
+        )}
       </ScrollView>
 
       <View style={styles.bottomActions}>
-        <TouchableOpacity style={styles.endServiceButton} onPress={handleEndService}>
-          <Text style={styles.endServiceButtonText}>End Service</Text>
+        <TouchableOpacity style={styles.endServiceButton} onPress={handleEndService} activeOpacity={0.9}>
+          <Text style={styles.endServiceButtonText}>End service</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -153,153 +145,159 @@ const ActiveServiceScreen: React.FC<Props> = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f8fafc",
+    backgroundColor: colors.canvas,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#f8fafc",
+    backgroundColor: colors.canvas,
   },
   loadingText: {
-    fontSize: 16,
-    color: "#64748b",
+    ...typography.body,
+    color: colors.textSecondary,
   },
   scrollView: {
     flex: 1,
   },
-  serviceInfo: {
-    backgroundColor: "#fff",
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "#e2e8f0",
+  scrollContent: {
+    padding: spacing.md,
+    paddingBottom: 120,
+  },
+  serviceCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.xl,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+    overflow: "hidden",
+    ...shadowCard,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  cardAccent: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: 0,
+    height: 4,
+    backgroundColor: colors.primary,
   },
   serviceType: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#1e293b",
-    marginBottom: 4,
+    fontSize: 22,
+    fontWeight: "800",
+    color: colors.text,
+    marginTop: spacing.sm,
+    marginBottom: spacing.xs,
   },
-  serviceLocation: {
-    fontSize: 16,
-    color: "#64748b",
+  serviceMeta: {
+    ...typography.body,
+    color: colors.textSecondary,
     marginBottom: 4,
-  },
-  serviceTime: {
-    fontSize: 14,
-    color: "#64748b",
-    marginBottom: 8,
   },
   serviceNotes: {
-    fontSize: 14,
-    color: "#374151",
+    ...typography.caption,
+    color: colors.textSecondary,
     fontStyle: "italic",
+    marginTop: spacing.xs,
   },
-  stats: {
-    backgroundColor: "#fff",
-    padding: 20,
-    marginTop: 1,
-    borderBottomWidth: 1,
-    borderBottomColor: "#e2e8f0",
-  },
-  statItem: {
+  statCard: {
+    backgroundColor: colors.cyanSoft,
+    borderRadius: radii.lg,
+    padding: spacing.lg,
     alignItems: "center",
+    marginBottom: spacing.lg,
+    borderWidth: 1,
+    borderColor: "#a5f3fc",
   },
   statNumber: {
-    fontSize: 32,
-    fontWeight: "bold",
-    color: "#6366f1",
+    fontSize: 40,
+    fontWeight: "800",
+    color: colors.primaryDark,
   },
   statLabel: {
-    fontSize: 14,
-    color: "#64748b",
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginTop: 4,
+    fontWeight: "600",
   },
   actions: {
-    padding: 20,
-    gap: 12,
-  },
-  primaryButton: {
-    backgroundColor: "#6366f1",
-    borderRadius: 8,
-    paddingVertical: 16,
-    alignItems: "center",
-  },
-  primaryButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  secondaryButton: {
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "#6366f1",
-    borderRadius: 8,
-    paddingVertical: 16,
-    alignItems: "center",
-  },
-  secondaryButtonText: {
-    color: "#6366f1",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  attendeesList: {
-    padding: 20,
+    marginBottom: spacing.lg,
+    gap: spacing.sm,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#1e293b",
-    marginBottom: 16,
+    ...typography.title,
+    color: colors.text,
+    marginBottom: spacing.md,
   },
   attendeeItem: {
-    backgroundColor: "#fff",
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 8,
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
+    ...shadowSoft,
     borderWidth: 1,
-    borderColor: "#e2e8f0",
+    borderColor: colors.borderLight,
+  },
+  attendeeDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.mint,
+    marginRight: spacing.sm,
   },
   attendeeInfo: {
     flex: 1,
   },
   attendeeName: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#1e293b",
+    ...typography.subtitle,
+    color: colors.text,
   },
   attendeePhone: {
-    fontSize: 14,
-    color: "#64748b",
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginTop: 2,
   },
   checkInTime: {
-    fontSize: 12,
-    color: "#64748b",
+    ...typography.small,
+    color: colors.textMuted,
+    fontWeight: "600",
   },
-  noAttendeesText: {
+  emptyHint: {
+    padding: spacing.lg,
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  emptyHintText: {
+    ...typography.body,
+    color: colors.textSecondary,
     textAlign: "center",
-    color: "#64748b",
-    fontSize: 16,
-    marginTop: 20,
   },
   bottomActions: {
-    backgroundColor: "#fff",
-    padding: 20,
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: colors.surface,
+    padding: spacing.md,
+    paddingBottom: spacing.lg,
     borderTopWidth: 1,
-    borderTopColor: "#e2e8f0",
+    borderTopColor: colors.border,
+    ...shadowSoft,
   },
   endServiceButton: {
-    backgroundColor: "#ef4444",
-    borderRadius: 8,
+    backgroundColor: colors.error,
+    borderRadius: radii.lg,
     paddingVertical: 16,
     alignItems: "center",
   },
   endServiceButtonText: {
     color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
+    fontSize: 17,
+    fontWeight: "800",
   },
 })
 

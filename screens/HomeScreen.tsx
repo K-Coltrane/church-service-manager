@@ -1,13 +1,15 @@
 "use client"
 
-import type React from "react"
-import { useState, useEffect, useCallback } from "react"
-import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView, RefreshControl } from "react-native"
 import { useFocusEffect } from "@react-navigation/native"
 import type { StackNavigationProp } from "@react-navigation/stack"
+import type React from "react"
+import { useCallback, useEffect, useState } from "react"
+import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native"
+import AppButton from "../components/ui/AppButton"
 import type { RootStackParamList } from "../navigation/AppNavigator"
 import { databaseService, type Service } from "../services/database"
 import { syncService, type SyncStatus } from "../services/sync"
+import { colors, radii, shadowCard, shadowSoft, spacing, typography } from "../theme/modernTheme"
 
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, "Home">
 
@@ -61,19 +63,18 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
     setRefreshing(false)
   }
 
-
   const getSyncStatusColor = () => {
     switch (syncStatus) {
       case "synced":
-        return "#10b981"
+        return colors.mint
       case "pending":
-        return "#f59e0b"
+        return colors.amber
       case "syncing":
-        return "#3b82f6"
+        return colors.info
       case "error":
-        return "#ef4444"
+        return colors.error
       default:
-        return "#6b7280"
+        return colors.textMuted
     }
   }
 
@@ -95,53 +96,79 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
   return (
     <ScrollView
       style={styles.container}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      contentContainerStyle={styles.contentContainer}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+      }
+      showsVerticalScrollIndicator={false}
     >
-      <View style={styles.header}>
-        <Text style={styles.welcomeText}>Church Service Manager</Text>
-        <TouchableOpacity style={styles.syncStatus} onPress={() => navigation.navigate("SyncStatus")}>
+      <View style={styles.topBar}>
+        <View>
+          <Text style={styles.helloEyebrow}>Welcome back</Text>
+          <Text style={styles.helloTitle}>Church Service</Text>
+        </View>
+        <TouchableOpacity
+          style={styles.syncBadge}
+          onPress={() => navigation.navigate("SyncStatus")}
+          activeOpacity={0.85}
+        >
           <View style={[styles.syncDot, { backgroundColor: getSyncStatusColor() }]} />
           <Text style={styles.syncText}>{getSyncStatusText()}</Text>
         </TouchableOpacity>
       </View>
 
-      <View style={styles.content}>
-        {activeService ? (
-          <View style={styles.activeServiceCard}>
-            <Text style={styles.cardTitle}>Active Service</Text>
-            <Text style={styles.serviceType}>{activeService.service_type_name}</Text>
-            {activeService.location && <Text style={styles.serviceLocation}>{activeService.location}</Text>}
-            <Text style={styles.serviceTime}>Started: {new Date(activeService.started_at).toLocaleTimeString()}</Text>
-
-            <TouchableOpacity
-              style={styles.primaryButton}
-              onPress={() => navigation.navigate("ActiveService", { serviceId: activeService.local_id })}
-            >
-              <Text style={styles.primaryButtonText}>Manage Service</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <View style={styles.noServiceCard}>
-            <Text style={styles.cardTitle}>No Active Service</Text>
-            <Text style={styles.noServiceText}>Start a new service to begin checking in visitors</Text>
-
-            <TouchableOpacity style={styles.primaryButton} onPress={() => navigation.navigate("StartService")}>
-              <Text style={styles.primaryButtonText}>Start New Service</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        <View style={styles.quickActions}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
-
-          <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate("SyncStatus")}>
-            <Text style={styles.actionButtonText}>View Sync Status</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate("RecentCheckIns")}>
-            <Text style={styles.actionButtonText}>View Recent Check-ins</Text>
-          </TouchableOpacity>
+      {activeService ? (
+        <View style={styles.heroCard}>
+          <View style={styles.heroAccent} />
+          <Text style={styles.cardEyebrow}>Live session</Text>
+          <Text style={styles.cardTitle}>Active service</Text>
+          <Text style={styles.serviceType}>{activeService.service_type_name}</Text>
+          {activeService.location ? (
+            <Text style={styles.serviceMeta}>{activeService.location}</Text>
+          ) : null}
+          <Text style={styles.serviceMeta}>
+            Started {new Date(activeService.started_at).toLocaleTimeString()}
+          </Text>
+          <AppButton
+            title="Manage service"
+            onPress={() => navigation.navigate("ActiveService", { serviceId: activeService.local_id })}
+            style={styles.cardButton}
+          />
         </View>
+      ) : (
+        <View style={[styles.heroCard, styles.heroCardMuted]}>
+          <View style={[styles.heroAccent, styles.heroAccentMuted]} />
+          <Text style={styles.cardEyebrow}>Ready when you are</Text>
+          <Text style={styles.cardTitle}>No active service</Text>
+          <Text style={styles.mutedBody}>Start a service to check in visitors and track attendance.</Text>
+          <AppButton title="Start new service" onPress={() => navigation.navigate("StartService")} style={styles.cardButton} />
+        </View>
+      )}
+
+      <Text style={styles.sectionLabel}>Quick actions</Text>
+      <View style={styles.actionsGrid}>
+        <TouchableOpacity
+          style={styles.actionTile}
+          onPress={() => navigation.navigate("SyncStatus")}
+          activeOpacity={0.9}
+        >
+          <View style={[styles.actionIcon, { backgroundColor: colors.cyanSoft }]}>
+            <Text style={styles.actionIconText}>↻</Text>
+          </View>
+          <Text style={styles.actionTitle}>Sync status</Text>
+          <Text style={styles.actionHint}>Cloud & offline</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.actionTile}
+          onPress={() => navigation.navigate("RecentCheckIns")}
+          activeOpacity={0.9}
+        >
+          <View style={[styles.actionIcon, { backgroundColor: colors.mintSoft }]}>
+            <Text style={styles.actionIconText}>✓</Text>
+          </View>
+          <Text style={styles.actionTitle}>Recent check-ins</Text>
+          <Text style={styles.actionHint}>Last 100 visits</Text>
+        </TouchableOpacity>
       </View>
     </ScrollView>
   )
@@ -150,116 +177,151 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f8fafc",
+    backgroundColor: colors.canvas,
   },
-  header: {
+  contentContainer: {
+    padding: spacing.md,
+    paddingBottom: spacing.xl * 2,
+  },
+  topBar: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
-    padding: 20,
-    backgroundColor: "#fff",
-    borderBottomWidth: 1,
-    borderBottomColor: "#e2e8f0",
+    alignItems: "flex-start",
+    marginBottom: spacing.lg,
   },
-  welcomeText: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#1e293b",
+  helloEyebrow: {
+    ...typography.small,
+    color: colors.cyan,
+    textTransform: "uppercase",
+    letterSpacing: 1,
+    marginBottom: 4,
   },
-  syncStatus: {
+  helloTitle: {
+    fontSize: 26,
+    fontWeight: "800",
+    color: colors.text,
+    letterSpacing: -0.5,
+  },
+  syncBadge: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
+    backgroundColor: colors.surface,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadowSoft,
   },
   syncDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
   },
   syncText: {
-    fontSize: 14,
-    color: "#64748b",
+    ...typography.caption,
+    color: colors.textSecondary,
+    fontWeight: "600",
   },
-  content: {
-    padding: 20,
-    gap: 24,
-  },
-  activeServiceCard: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 20,
+  heroCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.xl,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
+    overflow: "hidden",
+    ...shadowCard,
     borderWidth: 1,
-    borderColor: "#e2e8f0",
+    borderColor: colors.borderLight,
   },
-  noServiceCard: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
-    alignItems: "center",
+  heroCardMuted: {
+    borderColor: colors.border,
+  },
+  heroAccent: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: 0,
+    height: 5,
+    backgroundColor: colors.primary,
+  },
+  heroAccentMuted: {
+    backgroundColor: colors.textMuted,
+  },
+  cardEyebrow: {
+    ...typography.small,
+    color: colors.primary,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    marginTop: spacing.sm,
+    marginBottom: spacing.xs,
   },
   cardTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#1e293b",
-    marginBottom: 12,
+    ...typography.title,
+    color: colors.text,
+    marginBottom: spacing.sm,
   },
   serviceType: {
-    fontSize: 16,
-    fontWeight: "500",
-    color: "#6366f1",
+    fontSize: 18,
+    fontWeight: "700",
+    color: colors.primaryDark,
     marginBottom: 4,
   },
-  serviceLocation: {
-    fontSize: 14,
-    color: "#64748b",
-    marginBottom: 4,
+  serviceMeta: {
+    ...typography.body,
+    color: colors.textSecondary,
+    marginBottom: 2,
   },
-  serviceTime: {
-    fontSize: 14,
-    color: "#64748b",
-    marginBottom: 16,
+  mutedBody: {
+    ...typography.body,
+    color: colors.textSecondary,
+    lineHeight: 22,
+    marginBottom: spacing.md,
   },
-  noServiceText: {
-    fontSize: 14,
-    color: "#64748b",
-    textAlign: "center",
-    marginBottom: 20,
+  cardButton: {
+    marginTop: spacing.md,
   },
-  primaryButton: {
-    backgroundColor: "#6366f1",
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    alignItems: "center",
+  sectionLabel: {
+    ...typography.subtitle,
+    color: colors.text,
+    marginBottom: spacing.sm,
+    marginTop: spacing.xs,
   },
-  primaryButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
+  actionsGrid: {
+    flexDirection: "row",
+    gap: spacing.md,
   },
-  quickActions: {
-    gap: 12,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#1e293b",
-    marginBottom: 8,
-  },
-  actionButton: {
-    backgroundColor: "#fff",
-    borderRadius: 8,
-    paddingVertical: 16,
-    paddingHorizontal: 20,
+  actionTile: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    padding: spacing.md,
     borderWidth: 1,
-    borderColor: "#e2e8f0",
+    borderColor: colors.borderLight,
+    ...shadowSoft,
   },
-  actionButtonText: {
-    fontSize: 16,
-    color: "#1e293b",
-    textAlign: "center",
+  actionIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: radii.md,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: spacing.sm,
+  },
+  actionIconText: {
+    fontSize: 20,
+    color: colors.primaryDark,
+    fontWeight: "700",
+  },
+  actionTitle: {
+    ...typography.subtitle,
+    color: colors.text,
+    marginBottom: 4,
+  },
+  actionHint: {
+    ...typography.caption,
+    color: colors.textMuted,
   },
 })
 

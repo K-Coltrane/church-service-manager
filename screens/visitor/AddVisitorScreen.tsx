@@ -3,22 +3,24 @@
 import type { RouteProp } from "@react-navigation/native"
 import type { StackNavigationProp } from "@react-navigation/stack"
 import type React from "react"
+import type { ReactNode } from "react"
 import { useState } from "react"
 import {
-  ActivityIndicator,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native"
 import { v4 as uuidv4 } from "uuid"
+import AppButton from "../../components/ui/AppButton"
 import type { RootStackParamList } from "../../navigation/AppNavigator"
 import { databaseService } from "../../services/database"
+import { colors, radii, shadowSoft, spacing, typography } from "../../theme/modernTheme"
 
 type AddVisitorScreenNavigationProp = StackNavigationProp<RootStackParamList, "AddVisitor">
 type AddVisitorScreenRouteProp = RouteProp<RootStackParamList, "AddVisitor">
@@ -45,9 +47,8 @@ const AddVisitorScreen: React.FC<Props> = ({ navigation, route }) => {
     setStatus((prev) => {
       if (prev.includes(option)) {
         return prev.filter((s) => s !== option)
-      } else {
-        return [...prev, option]
       }
+      return [...prev, option]
     })
   }
 
@@ -59,7 +60,6 @@ const AddVisitorScreen: React.FC<Props> = ({ navigation, route }) => {
 
     setIsLoading(true)
     try {
-      // Check for existing visitor
       const searchQuery = name.trim()
       const existingVisitors = await databaseService.searchVisitors(searchQuery)
 
@@ -86,7 +86,6 @@ const AddVisitorScreen: React.FC<Props> = ({ navigation, route }) => {
         return
       }
 
-      // Create new visitor
       const visitorData = {
         local_id: uuidv4(),
         first_name: name.trim(),
@@ -136,176 +135,186 @@ const AddVisitorScreen: React.FC<Props> = ({ navigation, route }) => {
 
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === "ios" ? "padding" : "height"}>
-      <ScrollView style={styles.scrollView}>
-        <View style={styles.content}>
-          <Text style={styles.title}>Add New Visitor</Text>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <Text style={styles.heroEyebrow}>Registration</Text>
+        <Text style={styles.title}>Add new visitor</Text>
 
-          <View style={styles.form}>
-            <View style={styles.field}>
-              <Text style={styles.label}>Name *</Text>
-              <TextInput
-                style={styles.input}
-                value={name}
-                onChangeText={setName}
-                placeholder="Enter full name"
-                autoCapitalize="words"
-                editable={!isLoading}
-              />
-            </View>
+        <View style={styles.card}>
+          <Field label="Name *">
+            <TextInput
+              style={styles.input}
+              value={name}
+              onChangeText={setName}
+              placeholder="Full name"
+              placeholderTextColor={colors.textMuted}
+              autoCapitalize="words"
+              editable={!isLoading}
+            />
+          </Field>
 
-            <View style={styles.field}>
-              <Text style={styles.label}>Number</Text>
-              <TextInput
-                style={styles.input}
-                value={phone}
-                onChangeText={setPhone}
-                placeholder="Enter phone number"
-                keyboardType="phone-pad"
-                editable={!isLoading}
-              />
-            </View>
+          <Field label="Phone">
+            <TextInput
+              style={styles.input}
+              value={phone}
+              onChangeText={setPhone}
+              placeholder="Phone number"
+              placeholderTextColor={colors.textMuted}
+              keyboardType="phone-pad"
+              editable={!isLoading}
+            />
+          </Field>
 
-            <View style={styles.field}>
-              <Text style={styles.label}>Location</Text>
-              <TextInput
-                style={styles.input}
-                value={location}
-                onChangeText={setLocation}
-                placeholder="Enter location"
-                autoCapitalize="words"
-                editable={!isLoading}
-              />
-            </View>
+          <Field label="Location">
+            <TextInput
+              style={styles.input}
+              value={location}
+              onChangeText={setLocation}
+              placeholder="Location"
+              placeholderTextColor={colors.textMuted}
+              autoCapitalize="words"
+              editable={!isLoading}
+            />
+          </Field>
 
-            <View style={styles.field}>
-              <Text style={styles.label}>Email</Text>
-              <TextInput
-                style={styles.input}
-                value={email}
-                onChangeText={setEmail}
-                placeholder="Enter email address"
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-                editable={!isLoading}
-              />
-            </View>
+          <Field label="Email">
+            <TextInput
+              style={styles.input}
+              value={email}
+              onChangeText={setEmail}
+              placeholder="Email"
+              placeholderTextColor={colors.textMuted}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              editable={!isLoading}
+            />
+          </Field>
 
-            <View style={styles.field}>
-              <Text style={styles.label}>Status</Text>
-              <View style={styles.checkboxContainer}>
-                {(["Single", "Married", "Working Class", "Student"] as StatusOption[]).map((option) => (
-                  <TouchableOpacity
-                    key={option}
-                    style={styles.checkboxRow}
-                    onPress={() => toggleStatus(option)}
-                    disabled={isLoading}
-                  >
-                    <View style={[styles.checkbox, status.includes(option) && styles.checkboxChecked]}>
-                      {status.includes(option) && <Text style={styles.checkmark}>✓</Text>}
-                    </View>
-                    <Text style={styles.checkboxLabel}>{option}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            <View style={styles.field}>
-              <Text style={styles.label}>Level</Text>
-              <TextInput
-                style={styles.input}
-                value={level}
-                onChangeText={setLevel}
-                placeholder="Enter level"
-                autoCapitalize="words"
-                editable={!isLoading}
-              />
-            </View>
-
-            <View style={styles.field}>
-              <Text style={styles.label}>Invited By</Text>
-              <TextInput
-                style={styles.input}
-                value={inviterName}
-                onChangeText={setInviterName}
-                placeholder="Who invited this person?"
-                autoCapitalize="words"
-                editable={!isLoading}
-              />
-            </View>
-
-            <TouchableOpacity
-              style={[styles.saveButton, isLoading && styles.saveButtonDisabled]}
-              onPress={handleSaveAndCheckIn}
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.saveButtonText}>Save & Check In</Text>
-              )}
-            </TouchableOpacity>
+          <Text style={styles.label}>Status</Text>
+          <View style={styles.checkboxContainer}>
+            {(["Single", "Married", "Working Class", "Student"] as StatusOption[]).map((option) => (
+              <TouchableOpacity
+                key={option}
+                style={styles.checkboxRow}
+                onPress={() => toggleStatus(option)}
+                disabled={isLoading}
+                activeOpacity={0.85}
+              >
+                <View style={[styles.checkbox, status.includes(option) && styles.checkboxChecked]}>
+                  {status.includes(option) ? <Text style={styles.checkmark}>✓</Text> : null}
+                </View>
+                <Text style={styles.checkboxLabel}>{option}</Text>
+              </TouchableOpacity>
+            ))}
           </View>
+
+          <Field label="Level">
+            <TextInput
+              style={styles.input}
+              value={level}
+              onChangeText={setLevel}
+              placeholder="Level"
+              placeholderTextColor={colors.textMuted}
+              autoCapitalize="words"
+              editable={!isLoading}
+            />
+          </Field>
+
+          <Field label="Invited by">
+            <TextInput
+              style={styles.input}
+              value={inviterName}
+              onChangeText={setInviterName}
+              placeholder="Who invited this person?"
+              placeholderTextColor={colors.textMuted}
+              autoCapitalize="words"
+              editable={!isLoading}
+            />
+          </Field>
+
+          <AppButton
+            title="Save & check in"
+            onPress={handleSaveAndCheckIn}
+            loading={isLoading}
+            disabled={isLoading}
+            style={styles.cta}
+          />
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
   )
 }
 
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <View style={styles.field}>
+      <Text style={styles.label}>{label}</Text>
+      {children}
+    </View>
+  )
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f8fafc",
+    backgroundColor: colors.canvas,
   },
   scrollView: {
     flex: 1,
   },
   content: {
-    padding: 20,
+    padding: spacing.md,
+    paddingBottom: spacing.xl * 2,
+  },
+  heroEyebrow: {
+    ...typography.small,
+    color: colors.cyan,
+    textTransform: "uppercase",
+    letterSpacing: 1,
+    marginBottom: spacing.xs,
   },
   title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#1e293b",
-    marginBottom: 24,
+    fontSize: 26,
+    fontWeight: "800",
+    color: colors.text,
+    letterSpacing: -0.5,
+    marginBottom: spacing.lg,
   },
-  form: {
-    gap: 20,
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.xl,
+    padding: spacing.lg,
+    ...shadowSoft,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
   },
   field: {
-    gap: 8,
+    marginBottom: spacing.md,
   },
   label: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#374151",
+    ...typography.subtitle,
+    color: colors.text,
+    marginBottom: spacing.xs,
   },
   input: {
-    backgroundColor: "#fff",
+    backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
-    borderColor: "#e2e8f0",
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 14,
     fontSize: 16,
-  },
-  saveButton: {
-    backgroundColor: "#6366f1",
-    borderRadius: 8,
-    paddingVertical: 16,
-    alignItems: "center",
-    marginTop: 20,
-  },
-  saveButtonDisabled: {
-    opacity: 0.6,
-  },
-  saveButtonText: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "600",
+    color: colors.text,
   },
   checkboxContainer: {
-    gap: 12,
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+    marginBottom: spacing.md,
   },
   checkboxRow: {
     flexDirection: "row",
@@ -313,26 +322,29 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   checkbox: {
-    width: 24,
-    height: 24,
+    width: 26,
+    height: 26,
     borderWidth: 2,
-    borderColor: "#6366f1",
-    borderRadius: 4,
+    borderColor: colors.primary,
+    borderRadius: radii.sm,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#fff",
+    backgroundColor: colors.surface,
   },
   checkboxChecked: {
-    backgroundColor: "#6366f1",
+    backgroundColor: colors.primary,
   },
   checkmark: {
     color: "#fff",
-    fontSize: 16,
-    fontWeight: "bold",
+    fontSize: 14,
+    fontWeight: "800",
   },
   checkboxLabel: {
-    fontSize: 16,
-    color: "#374151",
+    ...typography.body,
+    color: colors.text,
+  },
+  cta: {
+    marginTop: spacing.md,
   },
 })
 

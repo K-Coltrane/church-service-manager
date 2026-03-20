@@ -1,18 +1,19 @@
 "use client"
 
-import type React from "react"
 import { NavigationContainer } from "@react-navigation/native"
 import { createStackNavigator } from "@react-navigation/stack"
+import type React from "react"
 
 // Import screens
-import SplashScreen from "../screens/SplashScreen"
 import HomeScreen from "../screens/HomeScreen"
-import StartServiceScreen from "../screens/service/StartServiceScreen"
+import RecentCheckInsScreen from "../screens/RecentCheckInsScreen"
 import ActiveServiceScreen from "../screens/service/ActiveServiceScreen"
+import StartServiceScreen from "../screens/service/StartServiceScreen"
+import SplashScreen from "../screens/SplashScreen"
+import SyncStatusScreen from "../screens/SyncStatusScreen"
 import AddVisitorScreen from "../screens/visitor/AddVisitorScreen"
 import SearchVisitorScreen from "../screens/visitor/SearchVisitorScreen"
-import SyncStatusScreen from "../screens/SyncStatusScreen"
-import RecentCheckInsScreen from "../screens/RecentCheckInsScreen"
+import { colors, shadowSoft } from "../theme/modernTheme"
 
 export type RootStackParamList = {
   Splash: undefined
@@ -34,12 +35,20 @@ const AppNavigator: React.FC = () => {
         initialRouteName="Splash"
         screenOptions={{
           headerStyle: {
-            backgroundColor: "#6366f1",
+            backgroundColor: colors.primaryDark,
+            ...shadowSoft,
+            shadowColor: colors.primaryDark,
+            shadowOpacity: 0.25,
+            elevation: 8,
           },
           headerTintColor: "#fff",
           headerTitleStyle: {
-            fontWeight: "bold",
+            fontWeight: "800",
+            fontSize: 18,
+            letterSpacing: -0.3,
           },
+          headerShadowVisible: true,
+          cardStyle: { backgroundColor: colors.canvas },
         }}
       >
         <Stack.Screen
@@ -47,7 +56,11 @@ const AppNavigator: React.FC = () => {
           component={SplashScreen}
           options={{ headerShown: false }}
         />
-        <Stack.Screen name="Home" component={HomeScreen} options={{ title: "Church Service Manager" }} />
+        <Stack.Screen
+          name="Home"
+          component={HomeScreen}
+          options={{ title: "Service Manager" }}
+        />
         <Stack.Screen name="StartService" component={StartServiceScreen} options={{ title: "Start New Service" }} />
         <Stack.Screen name="ActiveService" component={ActiveServiceScreen} options={{ title: "Active Service" }} />
         <Stack.Screen name="AddVisitor" component={AddVisitorScreen} options={{ title: "Add New Visitor" }} />
