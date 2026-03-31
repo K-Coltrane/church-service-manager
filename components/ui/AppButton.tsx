@@ -1,8 +1,16 @@
 "use client"
 
 import type React from "react"
-import { ActivityIndicator, Pressable, StyleSheet, Text, type StyleProp, type ViewStyle } from "react-native"
-import { colors, radii, shadowButton, typography } from "../../theme/modernTheme"
+import {
+    ActivityIndicator,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    type StyleProp,
+    type TextStyle,
+    type ViewStyle,
+} from "react-native"
+import { colors, radii } from "../../theme/modernTheme"
 
 export type AppButtonVariant = "primary" | "secondary" | "outline" | "danger" | "success" | "ghost"
 
@@ -25,99 +33,71 @@ const AppButton: React.FC<AppButtonProps> = ({
 }) => {
   const isDisabled = disabled || loading
 
+  const btnStyle: ViewStyle = StyleSheet.flatten([
+    styles.base,
+    variantStyles[variant].btn,
+    isDisabled && styles.disabled,
+    style,
+  ])
+
+  const txtStyle: TextStyle = StyleSheet.flatten([styles.text, variantStyles[variant].text])
+
   return (
-    <Pressable
-      onPress={onPress}
-      disabled={isDisabled}
-      style={({ pressed }) => [
-        styles.base,
-        variant === "primary" && styles.primary,
-        variant === "secondary" && styles.secondary,
-        variant === "outline" && styles.outline,
-        variant === "danger" && styles.danger,
-        variant === "success" && styles.success,
-        variant === "ghost" && styles.ghost,
-        variant === "primary" && !isDisabled && shadowButton,
-        pressed && !isDisabled && styles.pressed,
-        isDisabled && styles.disabled,
-        style,
-      ]}
-    >
+    <TouchableOpacity style={btnStyle} onPress={onPress} disabled={isDisabled} activeOpacity={0.75}>
       {loading ? (
-        <ActivityIndicator
-          color={
-            variant === "outline" || variant === "ghost" ? colors.primary : "#fff"
-          }
-          size="small"
-        />
+        <ActivityIndicator color={variant === "primary" ? "#fff" : colors.primary} size="small" />
       ) : (
-        <Text
-          style={[
-            styles.label,
-            variant === "primary" && styles.labelOnPrimary,
-            variant === "secondary" && styles.labelOnPrimary,
-            variant === "outline" && styles.labelOutline,
-            variant === "danger" && styles.labelOnPrimary,
-            variant === "success" && styles.labelOnPrimary,
-            variant === "ghost" && styles.labelGhost,
-          ]}
-          numberOfLines={1}
-        >
-          {title}
-        </Text>
+        <Text style={txtStyle}>{title}</Text>
       )}
-    </Pressable>
+    </TouchableOpacity>
   )
 }
 
 const styles = StyleSheet.create({
   base: {
+    width: "100%",
     paddingVertical: 14,
-    paddingHorizontal: 22,
+    paddingHorizontal: 20,
     borderRadius: radii.lg,
     alignItems: "center",
     justifyContent: "center",
-    minHeight: 52,
-  },
-  primary: {
-    backgroundColor: colors.primary,
-  },
-  secondary: {
-    backgroundColor: colors.cyan,
-  },
-  outline: {
-    backgroundColor: colors.surface,
-    borderWidth: 2,
-    borderColor: colors.primary,
-  },
-  danger: {
-    backgroundColor: colors.error,
-  },
-  success: {
-    backgroundColor: colors.mint,
-  },
-  ghost: {
-    backgroundColor: "transparent",
-  },
-  pressed: {
-    opacity: 0.88,
-    transform: [{ scale: 0.98 }],
+    marginBottom: 10,
+    minHeight: 50,
   },
   disabled: {
     opacity: 0.5,
   },
-  label: {
-    ...typography.subtitle,
-  },
-  labelOnPrimary: {
-    color: "#fff",
-  },
-  labelOutline: {
-    color: colors.primary,
-  },
-  labelGhost: {
-    color: colors.primary,
+  text: {
+    fontSize: 15,
+    fontWeight: "600",
   },
 })
+
+const variantStyles: Record<AppButtonVariant, { btn: ViewStyle; text: TextStyle }> = {
+  primary: {
+    btn: { backgroundColor: colors.primary },
+    text: { color: "#fff" },
+  },
+  secondary: {
+    btn: { backgroundColor: colors.primaryBg },
+    text: { color: colors.primary },
+  },
+  outline: {
+    btn: { backgroundColor: "transparent", borderWidth: 1.5, borderColor: colors.primary },
+    text: { color: colors.primary },
+  },
+  danger: {
+    btn: { backgroundColor: colors.dangerBg },
+    text: { color: colors.danger },
+  },
+  success: {
+    btn: { backgroundColor: colors.successBg },
+    text: { color: colors.success },
+  },
+  ghost: {
+    btn: { backgroundColor: "transparent" },
+    text: { color: colors.primary },
+  },
+}
 
 export default AppButton
