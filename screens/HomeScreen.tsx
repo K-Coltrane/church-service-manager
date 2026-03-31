@@ -3,8 +3,9 @@
 import { useFocusEffect } from "@react-navigation/native"
 import type { StackNavigationProp } from "@react-navigation/stack"
 import type React from "react"
-import { useCallback, useEffect, useState } from "react"
-import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import { RefreshControl, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from "react-native"
+import { SafeAreaView } from "react-native-safe-area-context"
 import AppButton from "../components/ui/AppButton"
 import type { RootStackParamList } from "../navigation/AppNavigator"
 import { databaseService, type Service } from "../services/database"
@@ -21,11 +22,19 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
   const [activeService, setActiveService] = useState<Service | null>(null)
   const [syncStatus, setSyncStatus] = useState<SyncStatus>("synced")
   const [refreshing, setRefreshing] = useState(false)
+  const [attendanceCount, setAttendanceCount] = useState<number>(0)
 
   const loadActiveService = async () => {
     try {
       const service = await databaseService.getActiveService()
       setActiveService(service)
+
+      if (service) {
+        const attendance = await databaseService.getServiceAttendance(service.local_id)
+        setAttendanceCount(attendance.length)
+      } else {
+        setAttendanceCount(0)
+      }
     } catch (error) {
       console.error("Error loading active service:", error)
     }
@@ -63,7 +72,7 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
     setRefreshing(false)
   }
 
-  const getSyncStatusColor = () => {
+  const syncDotColor = useMemo(() => {
     switch (syncStatus) {
       case "synced":
         return colors.mint
@@ -76,14 +85,14 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
       default:
         return colors.textMuted
     }
-  }
+  }, [syncStatus])
 
-  const getSyncStatusText = () => {
+  const syncStatusText = useMemo(() => {
     switch (syncStatus) {
       case "synced":
-        return "All synced"
+        return "All data synced"
       case "pending":
-        return "Sync pending"
+        return "Records waiting to upload"
       case "syncing":
         return "Syncing..."
       case "error":
@@ -91,124 +100,128 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
       default:
         return "Unknown"
     }
-  }
+  }, [syncStatus])
+
+  const greeting = useMemo(() => {
+    const h = new Date().getHours()
+    if (h < 12) return "Good morning"
+    if (h < 17) return "Good afternoon"
+    return "Good evening"
+  }, [])
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.contentContainer}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
-      }
-      showsVerticalScrollIndicator={false}
-    >
-      <View style={styles.topBar}>
-        <View>
-          <Text style={styles.helloEyebrow}>Welcome back</Text>
-          <Text style={styles.helloTitle}>Church Service</Text>
-        </View>
-        <TouchableOpacity
-          style={styles.syncBadge}
-          onPress={() => navigation.navigate("SyncStatus")}
-          activeOpacity={0.85}
-        >
-          <View style={[styles.syncDot, { backgroundColor: getSyncStatusColor() }]} />
-          <Text style={styles.syncText}>{getSyncStatusText()}</Text>
-        </TouchableOpacity>
-      </View>
-
-      {activeService ? (
-        <View style={styles.heroCard}>
-          <View style={styles.heroAccent} />
-          <Text style={styles.cardEyebrow}>Live session</Text>
-          <Text style={styles.cardTitle}>Active service</Text>
-          <Text style={styles.serviceType}>{activeService.service_type_name}</Text>
-          {activeService.location ? (
-            <Text style={styles.serviceMeta}>{activeService.location}</Text>
-          ) : null}
-          <Text style={styles.serviceMeta}>
-            Started {new Date(activeService.started_at).toLocaleTimeString()}
+    <SafeAreaView style={styles.safe}>
+      <StatusBar barStyle="dark-content" />
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.header}>
+          <Text style={styles.greeting}>
+            {greeting} <Text style={styles.wave}>👋</Text>
           </Text>
-          <AppButton
-            title="Manage service"
-            onPress={() => navigation.navigate("ActiveService", { serviceId: activeService.local_id })}
-            style={styles.cardButton}
-          />
+          <Text style={styles.title}>Dashboard</Text>
+          <TouchableOpacity
+            style={styles.syncPill}
+            onPress={() => navigation.navigate("SyncStatus")}
+            activeOpacity={0.85}
+          >
+            <View style={[styles.syncDot, { backgroundColor: syncDotColor }]} />
+            <Text style={styles.syncPillText}>{syncStatusText}</Text>
+          </TouchableOpacity>
         </View>
-      ) : (
-        <View style={[styles.heroCard, styles.heroCardMuted]}>
-          <View style={[styles.heroAccent, styles.heroAccentMuted]} />
-          <Text style={styles.cardEyebrow}>Ready when you are</Text>
-          <Text style={styles.cardTitle}>No active service</Text>
-          <Text style={styles.mutedBody}>Start a service to check in visitors and track attendance.</Text>
-          <AppButton title="Start new service" onPress={() => navigation.navigate("StartService")} style={styles.cardButton} />
-        </View>
-      )}
 
-      <Text style={styles.sectionLabel}>Quick actions</Text>
-      <View style={styles.actionsGrid}>
-        <TouchableOpacity
-          style={styles.actionTile}
-          onPress={() => navigation.navigate("SyncStatus")}
-          activeOpacity={0.9}
-        >
+        {activeService ? (
+          <View style={styles.activeCard}>
+            <View style={styles.activeAccent} />
+            <Text style={styles.activeLabel}>ACTIVE SERVICE</Text>
+            <Text style={styles.activeName}>{activeService.service_type_name || "Service"}</Text>
+            {activeService.location ? <Text style={styles.activeMeta}>{activeService.location}</Text> : null}
+            <View style={styles.statsRow}>
+              <View>
+                <Text style={styles.statNum}>{attendanceCount}</Text>
+                <Text style={styles.statLbl}>Checked in</Text>
+              </View>
+            </View>
+          </View>
+        ) : (
+          <View style={styles.noServiceCard}>
+            <Text style={styles.noServiceIcon}>🏛</Text>
+            <Text style={styles.noServiceText}>No active service</Text>
+            <Text style={styles.noServiceSub}>Start a service to begin checking in attendees.</Text>
+          </View>
+        )}
+
+        {activeService ? (
+          <AppButton
+            title="Manage Active Service"
+            onPress={() => navigation.navigate("ActiveService", { serviceId: activeService.local_id })}
+            style={styles.cta}
+          />
+        ) : (
+          <AppButton title="+ Start New Service" onPress={() => navigation.navigate("StartService")} style={styles.cta} />
+        )}
+
+        <Text style={styles.sectionTitle}>Quick actions</Text>
+
+        <TouchableOpacity style={styles.actionRow} onPress={() => navigation.navigate("SyncStatus")} activeOpacity={0.85}>
           <View style={[styles.actionIcon, { backgroundColor: colors.cyanSoft }]}>
-            <Text style={styles.actionIconText}>↻</Text>
+            <Text style={styles.actionEmoji}>↻</Text>
           </View>
-          <Text style={styles.actionTitle}>Sync status</Text>
-          <Text style={styles.actionHint}>Cloud & offline</Text>
+          <View style={styles.actionText}>
+            <Text style={styles.actionTitle}>Sync status</Text>
+            <Text style={styles.actionSub}>{syncStatusText}</Text>
+          </View>
+          <Text style={styles.actionArrow}>›</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.actionTile}
-          onPress={() => navigation.navigate("RecentCheckIns")}
-          activeOpacity={0.9}
-        >
+
+        <TouchableOpacity style={styles.actionRow} onPress={() => navigation.navigate("RecentCheckIns")} activeOpacity={0.85}>
           <View style={[styles.actionIcon, { backgroundColor: colors.mintSoft }]}>
-            <Text style={styles.actionIconText}>✓</Text>
+            <Text style={styles.actionEmoji}>✓</Text>
           </View>
-          <Text style={styles.actionTitle}>Recent check-ins</Text>
-          <Text style={styles.actionHint}>Last 100 visits</Text>
+          <View style={styles.actionText}>
+            <Text style={styles.actionTitle}>Recent check-ins</Text>
+            <Text style={styles.actionSub}>View last 100 entries</Text>
+          </View>
+          <Text style={styles.actionArrow}>›</Text>
         </TouchableOpacity>
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </SafeAreaView>
   )
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.canvas,
-  },
-  contentContainer: {
-    padding: spacing.md,
+  safe: { flex: 1, backgroundColor: colors.canvas },
+  scroll: { flex: 1 },
+  scrollContent: {
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
     paddingBottom: spacing.xl * 2,
   },
-  topBar: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: spacing.lg,
+  header: {
+    marginBottom: spacing.md,
   },
-  helloEyebrow: {
-    ...typography.small,
-    color: colors.cyan,
-    textTransform: "uppercase",
-    letterSpacing: 1,
+  greeting: {
+    ...typography.caption,
+    color: colors.textSecondary,
     marginBottom: 4,
   },
-  helloTitle: {
-    fontSize: 26,
-    fontWeight: "800",
+  wave: { fontSize: 13 },
+  title: {
+    ...typography.hero,
     color: colors.text,
-    letterSpacing: -0.5,
   },
-  syncBadge: {
+  syncPill: {
+    marginTop: spacing.sm,
+    alignSelf: "flex-start",
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
     backgroundColor: colors.surface,
     paddingVertical: 10,
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     borderRadius: radii.pill,
     borderWidth: 1,
     borderColor: colors.border,
@@ -219,87 +232,98 @@ const styles = StyleSheet.create({
     height: 10,
     borderRadius: 5,
   },
-  syncText: {
+  syncPillText: {
     ...typography.caption,
     color: colors.textSecondary,
     fontWeight: "600",
   },
-  heroCard: {
-    backgroundColor: colors.surface,
+  activeCard: {
+    backgroundColor: colors.primaryDark,
     borderRadius: radii.xl,
     padding: spacing.lg,
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
     overflow: "hidden",
     ...shadowCard,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
   },
-  heroCardMuted: {
-    borderColor: colors.border,
-  },
-  heroAccent: {
+  activeAccent: {
     position: "absolute",
     left: 0,
     right: 0,
     top: 0,
-    height: 5,
-    backgroundColor: colors.primary,
+    height: 4,
+    backgroundColor: colors.cyan,
   },
-  heroAccentMuted: {
-    backgroundColor: colors.textMuted,
-  },
-  cardEyebrow: {
+  activeLabel: {
     ...typography.small,
-    color: colors.primary,
+    color: "rgba(255,255,255,0.7)",
     fontWeight: "700",
-    textTransform: "uppercase",
     letterSpacing: 0.8,
     marginTop: spacing.sm,
-    marginBottom: spacing.xs,
   },
-  cardTitle: {
+  activeName: {
     ...typography.title,
-    color: colors.text,
+    color: "#fff",
+    fontSize: 18,
+    marginTop: spacing.xs,
     marginBottom: spacing.sm,
   },
-  serviceType: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: colors.primaryDark,
-    marginBottom: 4,
+  activeMeta: {
+    ...typography.caption,
+    color: "rgba(255,255,255,0.75)",
+    marginBottom: spacing.sm,
   },
-  serviceMeta: {
-    ...typography.body,
-    color: colors.textSecondary,
-    marginBottom: 2,
+  statsRow: {
+    flexDirection: "row",
+    gap: 18,
+    marginTop: spacing.xs,
   },
-  mutedBody: {
-    ...typography.body,
-    color: colors.textSecondary,
-    lineHeight: 22,
+  statNum: {
+    fontSize: 26,
+    fontWeight: "800",
+    color: "#fff",
+  },
+  statLbl: {
+    ...typography.caption,
+    color: "rgba(255,255,255,0.7)",
+  },
+  noServiceCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.xl,
+    padding: spacing.lg,
     marginBottom: spacing.md,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadowSoft,
   },
-  cardButton: {
-    marginTop: spacing.md,
+  noServiceIcon: { fontSize: 32, marginBottom: spacing.sm },
+  noServiceText: { ...typography.title, color: colors.text, marginBottom: 4 },
+  noServiceSub: {
+    ...typography.body,
+    color: colors.textSecondary,
+    textAlign: "center",
+    lineHeight: 22,
   },
-  sectionLabel: {
+  cta: {
+    marginTop: spacing.sm,
+    marginBottom: spacing.lg,
+  },
+  sectionTitle: {
     ...typography.subtitle,
     color: colors.text,
     marginBottom: spacing.sm,
-    marginTop: spacing.xs,
   },
-  actionsGrid: {
+  actionRow: {
     flexDirection: "row",
-    gap: spacing.md,
-  },
-  actionTile: {
-    flex: 1,
     backgroundColor: colors.surface,
-    borderRadius: radii.lg,
-    padding: spacing.md,
+    alignItems: "center",
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
     borderWidth: 1,
-    borderColor: colors.borderLight,
+    borderColor: colors.border,
+    borderRadius: radii.lg,
     ...shadowSoft,
+    marginBottom: spacing.sm,
   },
   actionIcon: {
     width: 44,
@@ -307,21 +331,26 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: spacing.sm,
   },
-  actionIconText: {
-    fontSize: 20,
+  actionEmoji: {
+    fontSize: 18,
     color: colors.primaryDark,
     fontWeight: "700",
   },
+  actionText: { flex: 1, marginLeft: spacing.sm },
   actionTitle: {
     ...typography.subtitle,
     color: colors.text,
-    marginBottom: 4,
   },
-  actionHint: {
+  actionSub: {
     ...typography.caption,
     color: colors.textMuted,
+  },
+  actionArrow: {
+    fontSize: 22,
+    color: colors.textMuted,
+    marginLeft: spacing.sm,
+    marginTop: -2,
   },
 })
 

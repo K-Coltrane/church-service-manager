@@ -1,14 +1,21 @@
 "use client"
 
+import type { StackNavigationProp } from "@react-navigation/stack"
 import type React from "react"
-import { useEffect, useState } from "react"
-import { Alert, ScrollView, StyleSheet, Text, View } from "react-native"
+import { useEffect, useMemo, useState } from "react"
+import { Alert, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from "react-native"
+import { SafeAreaView } from "react-native-safe-area-context"
 import AppButton from "../components/ui/AppButton"
+import type { RootStackParamList } from "../navigation/AppNavigator"
 import { databaseService } from "../services/database"
 import { syncService, type SyncStatus } from "../services/sync"
 import { colors, radii, shadowCard, shadowSoft, spacing, typography } from "../theme/modernTheme"
 
-const SyncStatusScreen: React.FC = () => {
+type Props = {
+  navigation: StackNavigationProp<RootStackParamList, "SyncStatus">
+}
+
+const SyncStatusScreen: React.FC<Props> = ({ navigation }) => {
   const [syncStatus, setSyncStatus] = useState<SyncStatus>("synced")
   const [isSyncing, setIsSyncing] = useState(false)
   const [unsyncedCounts, setUnsyncedCounts] = useState({
@@ -17,22 +24,7 @@ const SyncStatusScreen: React.FC = () => {
     attendance: 0,
   })
 
-  useEffect(() => {
-    loadSyncStatus()
-
-    const statusListener = (status: SyncStatus) => {
-      setSyncStatus(status)
-      setIsSyncing(status === "syncing")
-    }
-
-    syncService.addStatusListener(statusListener)
-
-    return () => {
-      syncService.removeStatusListener(statusListener)
-    }
-  }, [])
-
-  const loadSyncStatus = async () => {
+  const load = async () => {
     try {
       const status = await syncService.getSyncStatus()
       setSyncStatus(status)
@@ -53,240 +45,198 @@ const SyncStatusScreen: React.FC = () => {
     }
   }
 
-  const handleManualSync = async () => {
+  useEffect(() => {
+    load()
+
+    const statusListener = (status: SyncStatus) => {
+      setSyncStatus(status)
+      setIsSyncing(status === "syncing")
+    }
+
+    syncService.addStatusListener(statusListener)
+    return () => syncService.removeStatusListener(statusListener)
+  }, [])
+
+  const handleSync = async () => {
     try {
       setIsSyncing(true)
       await syncService.syncAll()
-      await loadSyncStatus()
-      Alert.alert("Success", "All data has been synced successfully!")
+      await load()
     } catch (error: any) {
-      Alert.alert("Sync Failed", error.message || "Failed to sync data. Please try again.")
+      Alert.alert("Sync Failed", error?.message || "Failed to sync data. Please try again.")
     } finally {
       setIsSyncing(false)
     }
   }
 
-  const getSyncStatusColor = () => {
-    switch (syncStatus) {
-      case "synced":
-        return colors.mint
-      case "pending":
-        return colors.amber
-      case "syncing":
-        return colors.info
-      case "error":
-        return colors.error
-      default:
-        return colors.textMuted
-    }
-  }
-
-  const getSyncStatusText = () => {
-    switch (syncStatus) {
-      case "synced":
-        return "All data is synced"
-      case "pending":
-        return "Sync pending"
-      case "syncing":
-        return "Syncing in progress..."
-      case "error":
-        return "Sync error occurred"
-      default:
-        return "Unknown status"
-    }
-  }
-
-  const getSyncStatusDescription = () => {
-    switch (syncStatus) {
-      case "synced":
-        return "All your local data has been successfully uploaded to the server."
-      case "pending":
-        return 'Some data is waiting to be synced. Connect to the internet and tap "Sync now" to upload.'
-      case "syncing":
-        return "Your data is currently being uploaded to the server. Please wait..."
-      case "error":
-        return "There was an error syncing your data. Check your internet connection and try again."
-      default:
-        return ""
-    }
-  }
-
   const totalUnsynced = unsyncedCounts.services + unsyncedCounts.visitors + unsyncedCounts.attendance
+  const isPending = totalUnsynced > 0
+
+  const statusConfig = useMemo(() => {
+    if (syncStatus === "error") {
+      return {
+        icon: "⚠",
+        title: "Sync error",
+        sub: "Check your connection and try again.",
+        bg: colors.coralSoft,
+        border: "#fecdd3",
+      }
+    }
+    if (syncStatus === "syncing") {
+      return {
+        icon: "↻",
+        title: "Syncing",
+        sub: "Uploading data…",
+        bg: colors.cyanSoft,
+        border: "#a5f3fc",
+      }
+    }
+    if (isPending) {
+      return {
+        icon: "↻",
+        title: "Sync pending",
+        sub: `${totalUnsynced} record${totalUnsynced !== 1 ? "s" : ""} waiting to upload`,
+        bg: "#fffbeb",
+        border: "#fde68a",
+      }
+    }
+    return {
+      icon: "✓",
+      title: "All synced",
+      sub: "Your data is up to date",
+      bg: colors.mintSoft,
+      border: "#a7f3d0",
+    }
+  }, [isPending, syncStatus, totalUnsynced])
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}
-    >
-      <View style={styles.statusCard}>
-        <View style={[styles.statusRibbon, { backgroundColor: getSyncStatusColor() }]} />
-        <View style={styles.statusHeader}>
-          <View style={[styles.statusDot, { backgroundColor: getSyncStatusColor() }]} />
-          <Text style={styles.statusTitle}>{getSyncStatusText()}</Text>
-        </View>
-        <Text style={styles.statusDescription}>{getSyncStatusDescription()}</Text>
-        {syncStatus === "pending" && (
-          <AppButton
-            title="Sync now"
-            onPress={handleManualSync}
-            loading={isSyncing}
-            disabled={isSyncing}
-            variant="primary"
-            style={styles.syncBtn}
-          />
-        )}
+    <SafeAreaView style={styles.safe}>
+      <StatusBar barStyle="dark-content" />
+
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} activeOpacity={0.85}>
+          <Text style={styles.backIcon}>‹</Text>
+        </TouchableOpacity>
+        <Text style={styles.topTitle}>Sync Status</Text>
+        <View style={styles.topRight} />
       </View>
 
-      <View style={styles.detailsCard}>
-        <Text style={styles.detailsTitle}>Sync details</Text>
-        <View style={styles.detailItem}>
-          <Text style={styles.detailLabel}>Services</Text>
-          <View style={styles.detailValue}>
-            <Text style={styles.detailNumber}>{unsyncedCounts.services}</Text>
-            <Text style={styles.detailUnit}>unsynced</Text>
+      <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
+        <View style={[styles.statusCard, { backgroundColor: statusConfig.bg, borderColor: statusConfig.border }]}>
+          <View style={styles.statusRow}>
+            <View style={styles.statusIconWrap}>
+              <Text style={styles.statusIcon}>{statusConfig.icon}</Text>
+            </View>
+            <View style={styles.statusText}>
+              <Text style={styles.statusTitle}>{statusConfig.title}</Text>
+              <Text style={styles.statusSub}>{statusConfig.sub}</Text>
+            </View>
           </View>
+          {isPending && (
+            <AppButton title="Sync Now" onPress={handleSync} loading={isSyncing} disabled={isSyncing} style={styles.syncBtn} />
+          )}
         </View>
-        <View style={styles.detailItem}>
-          <Text style={styles.detailLabel}>Visitors</Text>
-          <View style={styles.detailValue}>
-            <Text style={styles.detailNumber}>{unsyncedCounts.visitors}</Text>
-            <Text style={styles.detailUnit}>unsynced</Text>
-          </View>
-        </View>
-        <View style={styles.detailItem}>
-          <Text style={styles.detailLabel}>Attendance</Text>
-          <View style={styles.detailValue}>
-            <Text style={styles.detailNumber}>{unsyncedCounts.attendance}</Text>
-            <Text style={styles.detailUnit}>unsynced</Text>
-          </View>
-        </View>
-        <View style={styles.totalItem}>
-          <Text style={styles.totalLabel}>Total unsynced</Text>
-          <Text style={styles.totalNumber}>{totalUnsynced}</Text>
-        </View>
-      </View>
 
-      <View style={styles.infoCard}>
-        <Text style={styles.infoTitle}>About sync</Text>
-        <Text style={styles.infoText}>
-          This app works offline-first. Data is stored locally and synced when you're online. You can keep using
-          the app without internet.
-        </Text>
-      </View>
-    </ScrollView>
+        <Text style={styles.sectionTitle}>Unsynced records</Text>
+        <View style={styles.card}>
+          {[
+            { label: "Services", count: unsyncedCounts.services },
+            { label: "Visitors", count: unsyncedCounts.visitors },
+            { label: "Attendance records", count: unsyncedCounts.attendance },
+          ].map((row, i, arr) => (
+            <View key={row.label} style={[styles.row, i < arr.length - 1 && styles.rowBorder]}>
+              <Text style={styles.rowLabel}>{row.label}</Text>
+              <View style={[styles.badge, { backgroundColor: row.count > 0 ? "#fef3c7" : colors.mintSoft }]}>
+                <Text style={[styles.badgeText, { color: row.count > 0 ? "#92400e" : colors.mint }]}>
+                  {row.count > 0 ? `${row.count} pending` : "Synced"}
+                </Text>
+              </View>
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.infoCard}>
+          <Text style={styles.infoTitle}>About sync</Text>
+          <Text style={styles.infoText}>
+            This app works offline-first. Data is stored locally and synced when you're online.
+          </Text>
+        </View>
+
+        <View style={{ height: spacing.xl }} />
+      </ScrollView>
+    </SafeAreaView>
   )
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.canvas,
-  },
-  content: {
-    padding: spacing.md,
-    paddingBottom: spacing.xl * 2,
-    gap: spacing.md,
-  },
-  statusCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.xl,
-    padding: spacing.lg,
-    overflow: "hidden",
-    ...shadowCard,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-  },
-  statusRibbon: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    top: 0,
-    height: 4,
-  },
-  statusHeader: {
+  safe: { flex: 1, backgroundColor: colors.canvas },
+  topBar: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: spacing.sm,
-    marginTop: spacing.xs,
-  },
-  statusDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginRight: 12,
-  },
-  statusTitle: {
-    ...typography.title,
-    color: colors.text,
-    flex: 1,
-  },
-  statusDescription: {
-    ...typography.body,
-    color: colors.textSecondary,
-    lineHeight: 22,
-    marginBottom: spacing.md,
-  },
-  syncBtn: {
-    marginTop: spacing.xs,
-  },
-  detailsCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.xl,
-    padding: spacing.lg,
-    ...shadowSoft,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-  },
-  detailsTitle: {
-    ...typography.title,
-    color: colors.text,
-    marginBottom: spacing.md,
-  },
-  detailItem: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.borderLight,
   },
-  detailLabel: {
-    ...typography.body,
-    color: colors.textSecondary,
-  },
-  detailValue: {
-    flexDirection: "row",
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: radii.pill,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
     alignItems: "center",
-    gap: 6,
+    justifyContent: "center",
+    ...shadowSoft,
   },
-  detailNumber: {
-    fontSize: 17,
-    fontWeight: "800",
-    color: colors.text,
+  backIcon: { fontSize: 22, color: colors.primary, marginTop: -2 },
+  topTitle: { flex: 1, textAlign: "center", ...typography.title, color: colors.text },
+  topRight: { width: 36 },
+
+  scroll: { flex: 1, paddingHorizontal: spacing.md },
+
+  statusCard: {
+    borderRadius: radii.xl,
+    borderWidth: 1,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
+    ...shadowCard,
   },
-  detailUnit: {
-    ...typography.caption,
-    color: colors.textMuted,
-  },
-  totalItem: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+  statusRow: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: spacing.md },
+  statusIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: radii.lg,
+    backgroundColor: "rgba(255,255,255,0.6)",
     alignItems: "center",
-    paddingTop: spacing.md,
-    marginTop: spacing.xs,
-    borderTopWidth: 2,
-    borderTopColor: colors.border,
+    justifyContent: "center",
   },
-  totalLabel: {
-    ...typography.subtitle,
-    color: colors.text,
+  statusIcon: { fontSize: 22, color: colors.primaryDark, fontWeight: "800" },
+  statusText: { flex: 1 },
+  statusTitle: { ...typography.title, color: colors.text },
+  statusSub: { ...typography.body, color: colors.textSecondary, marginTop: 2, lineHeight: 20 },
+  syncBtn: { marginTop: spacing.xs },
+
+  sectionTitle: { ...typography.subtitle, color: colors.text, marginBottom: spacing.sm },
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    paddingHorizontal: spacing.md,
+    ...shadowSoft,
+    marginBottom: spacing.md,
   },
-  totalNumber: {
-    fontSize: 24,
-    fontWeight: "800",
-    color: colors.primary,
+  row: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 12 },
+  rowBorder: { borderBottomWidth: 1, borderBottomColor: colors.borderLight },
+  rowLabel: { ...typography.body, color: colors.textSecondary },
+  badge: {
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.04)",
   },
+  badgeText: { ...typography.caption, fontWeight: "700" },
+
   infoCard: {
     backgroundColor: colors.surfaceMuted,
     borderRadius: radii.lg,
@@ -294,16 +244,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  infoTitle: {
-    ...typography.subtitle,
-    color: colors.text,
-    marginBottom: spacing.sm,
-  },
-  infoText: {
-    ...typography.body,
-    color: colors.textSecondary,
-    lineHeight: 22,
-  },
+  infoTitle: { ...typography.subtitle, color: colors.text, marginBottom: spacing.sm },
+  infoText: { ...typography.body, color: colors.textSecondary, lineHeight: 22 },
 })
 
 export default SyncStatusScreen

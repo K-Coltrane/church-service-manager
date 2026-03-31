@@ -1,18 +1,21 @@
 "use client"
 
-import { useFocusEffect } from "@react-navigation/native"
 import type { StackNavigationProp } from "@react-navigation/stack"
-import React, { useCallback, useState } from "react"
+import React, { useEffect, useMemo, useState } from "react"
 import {
-  FlatList,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  View,
+    FlatList,
+    RefreshControl,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native"
+import { SafeAreaView } from "react-native-safe-area-context"
 import type { RootStackParamList } from "../navigation/AppNavigator"
 import { databaseService, type Attendance, type Service, type Visitor } from "../services/database"
-import { colors, radii, shadowCard, shadowSoft, spacing, typography } from "../theme/modernTheme"
+import { colors, radii, shadowSoft, spacing, typography } from "../theme/modernTheme"
 
 type RecentCheckInsScreenNavigationProp = StackNavigationProp<RootStackParamList, "RecentCheckIns">
 
@@ -25,9 +28,42 @@ interface CheckInRecord extends Attendance {
   service: Service
 }
 
-const RecentCheckInsScreen: React.FC<Props> = ({ navigation: _navigation }: Props) => {
+const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
+  Member: { bg: "#d1fae5", text: "#065f46" },
+  Visitor: { bg: "#dbeafe", text: "#1a6fd4" },
+  "First-timer": { bg: "#fef3c7", text: "#92400e" },
+  Worker: { bg: "#f3f4f6", text: "#374151" },
+  Youth: { bg: "#ede9fe", text: "#5b21b6" },
+}
+
+function initials(name: string) {
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase()
+}
+
+function timeLabel(iso: string): { time: string; day: string } {
+  const d = new Date(iso)
+  const now = new Date()
+  const isToday = d.toDateString() === now.toDateString()
+  const yesterday = new Date()
+  yesterday.setDate(now.getDate() - 1)
+  const isYesterday = d.toDateString() === yesterday.toDateString()
+
+  const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+  if (isToday) return { time, day: "Today" }
+  if (isYesterday) return { time, day: "Yesterday" }
+  return { time, day: d.toLocaleDateString([], { month: "short", day: "numeric" }) }
+}
+
+const RecentCheckInsScreen: React.FC<Props> = ({ navigation }: Props) => {
   const [checkIns, setCheckIns] = useState<CheckInRecord[]>([])
   const [refreshing, setRefreshing] = useState(false)
+  const [filter, setFilter] = useState("")
 
   const loadRecentCheckIns = async () => {
     try {
@@ -38,11 +74,9 @@ const RecentCheckInsScreen: React.FC<Props> = ({ navigation: _navigation }: Prop
     }
   }
 
-  useFocusEffect(
-    useCallback(() => {
-      loadRecentCheckIns()
-    }, []),
-  )
+  useEffect(() => {
+    loadRecentCheckIns()
+  }, [])
 
   const onRefresh = async () => {
     setRefreshing(true)
@@ -50,256 +84,167 @@ const RecentCheckInsScreen: React.FC<Props> = ({ navigation: _navigation }: Prop
     setRefreshing(false)
   }
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
-    return date.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
+  const filtered = useMemo(() => {
+    const q = filter.trim().toLowerCase()
+    if (!q) return checkIns
+    return checkIns.filter((c) => {
+      const name = `${c.visitor.first_name} ${c.visitor.last_name ?? ""}`.trim().toLowerCase()
+      return name.includes(q)
     })
-  }
-
-  const formatTime = (dateString: string) => {
-    const date = new Date(dateString)
-    return date.toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    })
-  }
-
-  const renderItem = ({ item, index }: { item: CheckInRecord; index: number }) => {
-    const fullName = `${item.visitor.first_name} ${item.visitor.last_name}`.trim()
-    return (
-      <View style={[styles.card, index === 0 && styles.cardFirst]}>
-        <View style={styles.cardAccent} />
-        <View style={styles.cardBody}>
-          <Text style={styles.name}>{fullName || "—"}</Text>
-          <View style={styles.metaRow}>
-            <View style={[styles.chip, styles.chipCyan]}>
-              <Text style={styles.chipLabel}>Phone</Text>
-              <Text style={styles.chipValue} numberOfLines={1}>
-                {item.visitor.phone || "—"}
-              </Text>
-            </View>
-            <View style={[styles.chip, styles.chipMint]}>
-              <Text style={styles.chipLabel}>Service</Text>
-              <Text style={styles.chipValue} numberOfLines={2}>
-                {item.service.service_type_name || "—"}
-              </Text>
-            </View>
-          </View>
-          <View style={styles.footerRow}>
-            <View style={styles.datePill}>
-              <Text style={styles.datePillText}>{formatDate(item.checked_in_at)}</Text>
-            </View>
-            <Text style={styles.timeText}>{formatTime(item.checked_in_at)}</Text>
-          </View>
-        </View>
-      </View>
-    )
-  }
-
-  const ListHeader = () => (
-    <View style={styles.hero}>
-      <Text style={styles.heroEyebrow}>Activity</Text>
-      <Text style={styles.heroTitle}>Recent check-ins</Text>
-      <View style={styles.statPill}>
-        <Text style={styles.statNumber}>{checkIns.length}</Text>
-        <Text style={styles.statLabel}>total records</Text>
-      </View>
-    </View>
-  )
-
-  const ListEmpty = () => (
-    <View style={styles.emptyWrap}>
-      <View style={styles.emptyCard}>
-        <Text style={styles.emptyTitle}>No check-ins yet</Text>
-        <Text style={styles.emptySub}>Start a service and check in visitors to see them here.</Text>
-      </View>
-    </View>
-  )
+  }, [checkIns, filter])
 
   return (
-    <View style={styles.screen}>
+    <SafeAreaView style={styles.safe}>
+      <StatusBar barStyle="dark-content" />
+
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} activeOpacity={0.85}>
+          <Text style={styles.backIcon}>‹</Text>
+        </TouchableOpacity>
+        <Text style={styles.topTitle}>Recent Check-ins</Text>
+        <View style={styles.topRight} />
+      </View>
+
+      <View style={styles.searchRow}>
+        <Text style={styles.searchIcon}>🔍</Text>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Filter by name..."
+          placeholderTextColor={colors.textMuted}
+          value={filter}
+          onChangeText={setFilter}
+        />
+      </View>
+
       <FlatList
-        data={checkIns}
+        data={filtered}
         keyExtractor={(item) => item.local_id}
-        renderItem={renderItem}
-        ListHeaderComponent={ListHeader}
-        ListEmptyComponent={ListEmpty}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
-        contentContainerStyle={[
-          styles.listContent,
-          checkIns.length === 0 && styles.listContentEmpty,
-        ]}
-        showsVerticalScrollIndicator
-        // Critical for web + native: single vertical scroll surface
-        style={styles.list}
+        showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        contentContainerStyle={styles.listContent}
+        ListHeaderComponent={() => (
+          <Text style={styles.countLabel}>
+            Showing {filtered.length} check-in{filtered.length !== 1 ? "s" : ""}
+          </Text>
+        )}
+        renderItem={({ item }) => {
+          const fullName = `${item.visitor.first_name} ${item.visitor.last_name ?? ""}`.trim() || "—"
+          const statusLabel = (item.visitor.status || "Visitor").split(",")[0]?.trim() || "Visitor"
+          const sc = STATUS_COLORS[statusLabel] ?? STATUS_COLORS.Visitor
+          const tl = timeLabel(item.checked_in_at)
+          return (
+            <View style={styles.card}>
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>{initials(fullName || "?")}</Text>
+              </View>
+              <View style={styles.info}>
+                <Text style={styles.name}>{fullName}</Text>
+                <View style={styles.metaRow}>
+                  <Text style={styles.meta}>{item.service.service_type_name || "Service"}</Text>
+                  <View style={[styles.badge, { backgroundColor: sc.bg }]}>
+                    <Text style={[styles.badgeText, { color: sc.text }]}>{statusLabel}</Text>
+                  </View>
+                </View>
+              </View>
+              <View style={styles.timeWrap}>
+                <Text style={styles.time}>{tl.time}</Text>
+                <Text style={[styles.day, { color: tl.day === "Today" ? colors.primary : colors.textMuted }]}>
+                  {tl.day}
+                </Text>
+              </View>
+            </View>
+          )
+        }}
+        ListEmptyComponent={() => (
+          <View style={styles.empty}>
+            <Text style={styles.emptyText}>No check-ins found</Text>
+          </View>
+        )}
       />
-    </View>
+    </SafeAreaView>
   )
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: colors.canvas,
+  safe: { flex: 1, backgroundColor: colors.canvas },
+  topBar: { flexDirection: "row", alignItems: "center", paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: radii.pill,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+    ...shadowSoft,
   },
-  list: {
-    flex: 1,
+  backIcon: { fontSize: 22, color: colors.primary, marginTop: -2 },
+  topTitle: { flex: 1, textAlign: "center", ...typography.title, color: colors.text },
+  topRight: { width: 36 },
+
+  searchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginHorizontal: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: spacing.sm,
+    gap: 10,
+    ...shadowSoft,
   },
+  searchIcon: { fontSize: 16 },
+  searchInput: { flex: 1, fontSize: 15, color: colors.text },
+
   listContent: {
     paddingHorizontal: spacing.md,
     paddingBottom: spacing.xl * 2,
-    paddingTop: spacing.sm,
+    paddingTop: 8,
   },
-  listContentEmpty: {
-    flexGrow: 1,
-  },
-  hero: {
-    marginBottom: spacing.lg,
-    padding: spacing.lg,
-    borderRadius: radii.xl,
-    backgroundColor: colors.surface,
-    ...shadowCard,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-  },
-  heroEyebrow: {
-    ...typography.small,
-    color: colors.cyan,
-    textTransform: "uppercase",
-    letterSpacing: 1.2,
-    marginBottom: spacing.xs,
-  },
-  heroTitle: {
-    ...typography.hero,
-    color: colors.text,
-    marginBottom: spacing.md,
-  },
-  statPill: {
-    flexDirection: "row",
-    alignItems: "baseline",
-    gap: 8,
-    alignSelf: "flex-start",
-    backgroundColor: colors.canvasAlt,
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: radii.pill,
-  },
-  statNumber: {
-    fontSize: 22,
-    fontWeight: "800",
-    color: colors.primary,
-  },
-  statLabel: {
-    ...typography.caption,
-    color: colors.textSecondary,
-  },
+  countLabel: { ...typography.caption, color: colors.textSecondary, marginBottom: spacing.sm },
   card: {
-    marginBottom: spacing.md,
-    borderRadius: radii.lg,
-    backgroundColor: colors.surface,
-    overflow: "hidden",
-    ...shadowSoft,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-  },
-  cardFirst: {
-    marginTop: 0,
-  },
-  cardAccent: {
-    height: 4,
-    width: "100%",
-    backgroundColor: colors.primary,
-  },
-  cardBody: {
-    padding: spacing.md,
-  },
-  name: {
-    ...typography.title,
-    color: colors.text,
-    marginBottom: spacing.sm,
-  },
-  metaRow: {
-    gap: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  chip: {
-    borderRadius: radii.md,
-    padding: spacing.sm,
-    borderWidth: 1,
-  },
-  chipCyan: {
-    backgroundColor: colors.cyanSoft,
-    borderColor: "#a5f3fc",
-  },
-  chipMint: {
-    backgroundColor: colors.mintSoft,
-    borderColor: "#a7f3d0",
-  },
-  chipLabel: {
-    ...typography.small,
-    color: colors.textMuted,
-    marginBottom: 2,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  chipValue: {
-    ...typography.body,
-    color: colors.text,
-  },
-  footerRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    marginTop: spacing.xs,
-  },
-  datePill: {
-    backgroundColor: colors.coralSoft,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: radii.pill,
-    borderWidth: 1,
-    borderColor: "#fecdd3",
-  },
-  datePillText: {
-    ...typography.caption,
-    color: colors.coral,
-    fontWeight: "700",
-  },
-  timeText: {
-    ...typography.subtitle,
-    color: colors.textSecondary,
-  },
-  emptyWrap: {
-    flex: 1,
-    justifyContent: "center",
-    minHeight: 280,
-    paddingVertical: spacing.xl,
-  },
-  emptyCard: {
     backgroundColor: colors.surface,
-    borderRadius: radii.xl,
-    padding: spacing.xl,
-    alignItems: "center",
-    ...shadowSoft,
+    borderRadius: radii.lg,
+    padding: spacing.md,
+    marginBottom: 8,
     borderWidth: 1,
     borderColor: colors.border,
+    gap: 12,
+    ...shadowSoft,
   },
-  emptyTitle: {
-    ...typography.title,
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: radii.pill,
+    backgroundColor: colors.canvasAlt,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  avatarText: { ...typography.caption, fontWeight: "800", color: colors.primaryDark },
+  info: { flex: 1, minWidth: 0 },
+  name: {
+    ...typography.subtitle,
     color: colors.text,
-    marginBottom: spacing.sm,
+    marginBottom: 4,
   },
-  emptySub: {
-    ...typography.body,
-    color: colors.textSecondary,
-    textAlign: "center",
-    lineHeight: 22,
-  },
+  metaRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  meta: { ...typography.caption, color: colors.textSecondary },
+  badge: { paddingVertical: 2, paddingHorizontal: 8, borderRadius: radii.pill },
+  badgeText: { fontSize: 10, fontWeight: "700" },
+  timeWrap: { alignItems: "flex-end" },
+  time: { fontSize: 11, color: colors.textSecondary, fontWeight: "600" },
+  day: { fontSize: 10, fontWeight: "700", marginTop: 2 },
+  empty: { alignItems: "center", paddingTop: 60 },
+  emptyText: { ...typography.body, color: colors.textSecondary },
 })
 
 export default RecentCheckInsScreen

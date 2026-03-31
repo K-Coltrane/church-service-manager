@@ -34,6 +34,7 @@ const AppNavigator: React.FC = () => {
       <Stack.Navigator
         initialRouteName="Splash"
         screenOptions={{
+          headerShown: false,
           headerStyle: {
             backgroundColor: colors.primaryDark,
             ...shadowSoft,
@@ -54,23 +55,20 @@ const AppNavigator: React.FC = () => {
         <Stack.Screen
           name="Splash"
           component={SplashScreen}
-          options={{ headerShown: false }}
         />
         <Stack.Screen
           name="Home"
           component={HomeScreen}
-          options={{ title: "Service Manager" }}
         />
-        <Stack.Screen name="StartService" component={StartServiceScreen} options={{ title: "Start New Service" }} />
-        <Stack.Screen name="ActiveService" component={ActiveServiceScreen} options={{ title: "Active Service" }} />
-        <Stack.Screen name="AddVisitor" component={AddVisitorScreen} options={{ title: "Add New Visitor" }} />
+        <Stack.Screen name="StartService" component={StartServiceScreen} />
+        <Stack.Screen name="ActiveService" component={ActiveServiceScreen} />
+        <Stack.Screen name="AddVisitor" component={AddVisitorScreen} />
         <Stack.Screen
           name="SearchVisitor"
           component={SearchVisitorScreen}
-          options={{ title: "Check In Visitor" }}
         />
-        <Stack.Screen name="SyncStatus" component={SyncStatusScreen} options={{ title: "Sync Status" }} />
-        <Stack.Screen name="RecentCheckIns" component={RecentCheckInsScreen} options={{ title: "Recent Check-ins" }} />
+        <Stack.Screen name="SyncStatus" component={SyncStatusScreen} />
+        <Stack.Screen name="RecentCheckIns" component={RecentCheckInsScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   )

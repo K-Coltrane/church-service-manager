@@ -1,10 +1,20 @@
 "use client"
 
-import { Picker } from "@react-native-picker/picker"
 import type { StackNavigationProp } from "@react-navigation/stack"
 import type React from "react"
 import { useEffect, useState } from "react"
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TextInput, View } from "react-native"
+import {
+    ActivityIndicator,
+    Alert,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from "react-native"
+import { SafeAreaView } from "react-native-safe-area-context"
 import { v4 as uuidv4 } from "uuid"
 import AppButton from "../../components/ui/AppButton"
 import type { RootStackParamList } from "../../navigation/AppNavigator"
@@ -21,14 +31,25 @@ interface Props {
 const StartServiceScreen: React.FC<Props> = ({ navigation }) => {
   const [serviceTypes, setServiceTypes] = useState<ServiceType[]>([])
   const [selectedServiceType, setSelectedServiceType] = useState<number>(0)
-  const [name, setName] = useState("")
-  const [notes, setNotes] = useState("")
+  const [speaker, setSpeaker] = useState("")
+  const [expected, setExpected] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingTypes, setIsLoadingTypes] = useState(true)
 
   useEffect(() => {
     loadServiceTypes()
   }, [])
+
+  const iconForType = (typeName: string) => {
+    const n = typeName.toLowerCase()
+    if (n.includes("sunday") || n.includes("morning")) return "🌅"
+    if (n.includes("evening") || n.includes("night")) return "🌙"
+    if (n.includes("bible") || n.includes("study")) return "📖"
+    if (n.includes("prayer")) return "🙏"
+    if (n.includes("youth")) return "🎵"
+    if (n.includes("special") || n.includes("program")) return "✨"
+    return "⛪"
+  }
 
   const loadServiceTypes = async () => {
     try {
@@ -75,12 +96,18 @@ const StartServiceScreen: React.FC<Props> = ({ navigation }) => {
     setIsLoading(true)
     try {
       const selectedType = serviceTypes.find((t) => t.id === selectedServiceType)
+      const expectedNumber = Number.parseInt(expected, 10)
+      const expectedAttendance = Number.isFinite(expectedNumber) ? expectedNumber : undefined
+      const notesParts = [
+        speaker.trim() ? `Speaker: ${speaker.trim()}` : null,
+        expectedAttendance !== undefined ? `Expected attendance: ${expectedAttendance}` : null,
+      ].filter(Boolean) as string[]
+
       const serviceData = {
         local_id: uuidv4(),
         service_type_id: selectedServiceType,
         service_type_name: selectedType?.name,
-        name: name.trim() || undefined,
-        notes: notes.trim() || undefined,
+        notes: notesParts.length ? notesParts.join("\n") : undefined,
         started_at: new Date().toISOString(),
         synced: false,
       }
@@ -103,88 +130,84 @@ const StartServiceScreen: React.FC<Props> = ({ navigation }) => {
 
   if (isLoadingTypes) {
     return (
-      <View style={styles.loadingContainer}>
+      <SafeAreaView style={styles.loadingContainer}>
+        <StatusBar barStyle="dark-content" />
         <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.loadingText}>Loading service types...</Text>
-      </View>
+      </SafeAreaView>
     )
   }
 
+  const dateLabel = new Date().toLocaleDateString("en-US", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  })
+
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.scrollContent}
-      keyboardShouldPersistTaps="handled"
-      showsVerticalScrollIndicator={false}
-    >
-      <View style={styles.hero}>
-        <Text style={styles.heroEyebrow}>New session</Text>
-        <Text style={styles.title}>Start a service</Text>
-        <Text style={styles.heroSub}>Pick a type, add optional details, and go live.</Text>
+    <SafeAreaView style={styles.safe}>
+      <StatusBar barStyle="dark-content" />
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} activeOpacity={0.85}>
+          <Text style={styles.backIcon}>‹</Text>
+        </TouchableOpacity>
+        <Text style={styles.topTitle}>Start Service</Text>
+        <View style={styles.topRight} />
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.label}>Service type *</Text>
-        <View style={styles.pickerContainer}>
-          <Picker
-            selectedValue={selectedServiceType}
-            onValueChange={(value) => setSelectedServiceType(value)}
-            style={styles.picker}
-            dropdownIconColor={colors.primary}
-          >
-            <Picker.Item label="Select service type..." value={0} color={colors.textMuted} />
-            {serviceTypes.map((type) => (
-              <Picker.Item key={type.id} label={type.name} value={type.id} color={colors.text} />
-            ))}
-          </Picker>
+      <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <Text style={styles.sectionTitle}>Service Type</Text>
+        <View style={styles.typeGrid}>
+          {serviceTypes.map((t) => (
+            <TouchableOpacity
+              key={t.id}
+              style={[styles.typeCard, selectedServiceType === t.id && styles.typeCardSelected]}
+              onPress={() => setSelectedServiceType(t.id)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.typeIcon}>{iconForType(t.name)}</Text>
+              <Text style={[styles.typeName, selectedServiceType === t.id && styles.typeNameSelected]}>{t.name}</Text>
+            </TouchableOpacity>
+          ))}
         </View>
-        {selectedServiceType !== 0 && (
-          <Text style={styles.selectedHint}>
-            Selected: {serviceTypes.find((t) => t.id === selectedServiceType)?.name}
-          </Text>
-        )}
 
-        <Text style={[styles.label, styles.labelSpaced]}>Name of service</Text>
+        <Text style={styles.sectionTitle}>Details</Text>
+
+        <Text style={styles.inputLabel}>Date</Text>
+        <View style={styles.dateField}>
+          <Text style={styles.dateText}>{dateLabel}</Text>
+        </View>
+
+        <Text style={styles.inputLabel}>Lead Pastor / Speaker</Text>
         <TextInput
           style={styles.input}
-          value={name}
-          onChangeText={setName}
-          placeholder="e.g., Take Over 1.0"
+          placeholder="Enter name..."
           placeholderTextColor={colors.textMuted}
+          value={speaker}
+          onChangeText={setSpeaker}
         />
 
-        <Text style={[styles.label, styles.labelSpaced]}>Notes</Text>
+        <Text style={styles.inputLabel}>Expected Attendance</Text>
         <TextInput
-          style={[styles.input, styles.textArea]}
-          value={notes}
-          onChangeText={setNotes}
-          placeholder="Any additional notes"
+          style={styles.input}
+          placeholder="e.g. 100"
           placeholderTextColor={colors.textMuted}
-          multiline
-          numberOfLines={3}
+          keyboardType="numeric"
+          value={expected}
+          onChangeText={setExpected}
         />
 
-        <AppButton
-          title="Start service"
-          onPress={handleStartService}
-          loading={isLoading}
-          disabled={isLoading}
-          style={styles.cta}
-        />
-      </View>
-    </ScrollView>
+        <View style={styles.ctaWrap}>
+          <AppButton title="Start Service →" onPress={handleStartService} loading={isLoading} disabled={isLoading} />
+        </View>
+        <View style={{ height: spacing.xl }} />
+      </ScrollView>
+    </SafeAreaView>
   )
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.canvas,
-  },
-  scrollContent: {
-    padding: spacing.md,
-    paddingBottom: spacing.xl * 2,
-  },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
@@ -196,78 +219,74 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.textSecondary,
   },
-  hero: {
-    marginBottom: spacing.lg,
+  safe: { flex: 1, backgroundColor: colors.canvas },
+  topBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
   },
-  heroEyebrow: {
-    ...typography.small,
-    color: colors.cyan,
-    textTransform: "uppercase",
-    letterSpacing: 1,
-    marginBottom: spacing.xs,
-  },
-  title: {
-    fontSize: 26,
-    fontWeight: "800",
-    color: colors.text,
-    letterSpacing: -0.5,
-    marginBottom: spacing.xs,
-  },
-  heroSub: {
-    ...typography.body,
-    color: colors.textSecondary,
-    lineHeight: 22,
-  },
-  card: {
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: radii.pill,
     backgroundColor: colors.surface,
-    borderRadius: radii.xl,
-    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: "center",
+    justifyContent: "center",
     ...shadowSoft,
+  },
+  backIcon: { fontSize: 22, color: colors.primary, marginTop: -2 },
+  topTitle: { flex: 1, textAlign: "center", ...typography.title, color: colors.text },
+  topRight: { width: 36 },
+
+  scroll: { flex: 1, paddingHorizontal: spacing.md },
+  sectionTitle: { ...typography.subtitle, marginTop: spacing.md, marginBottom: spacing.sm, color: colors.text },
+
+  typeGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: spacing.md },
+  typeCard: {
+    width: "48%",
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    padding: spacing.md,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadowSoft,
+  },
+  typeCardSelected: {
+    borderColor: colors.primary,
+    backgroundColor: colors.canvasAlt,
+  },
+  typeIcon: { fontSize: 26, marginBottom: 6 },
+  typeName: { ...typography.caption, fontWeight: "700", color: colors.textSecondary, textAlign: "center" },
+  typeNameSelected: { color: colors.primary },
+
+  inputLabel: { ...typography.small, color: colors.textSecondary, marginBottom: 6 },
+  input: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.lg,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+    color: colors.text,
+    marginBottom: spacing.sm,
+  },
+  dateField: {
+    backgroundColor: colors.canvasAlt,
+    borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: colors.borderLight,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: spacing.sm,
   },
-  label: {
-    ...typography.subtitle,
-    color: colors.text,
-    marginBottom: spacing.xs,
-  },
-  labelSpaced: {
-    marginTop: spacing.md,
-  },
-  pickerContainer: {
-    backgroundColor: colors.surfaceMuted,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.md,
-    overflow: "hidden",
-  },
-  picker: {
-    height: 52,
-    color: colors.text,
-  },
-  selectedHint: {
+  dateText: { ...typography.body, color: colors.primaryDark, fontWeight: "700" },
+  ctaWrap: {
     marginTop: spacing.sm,
-    ...typography.caption,
-    color: colors.primary,
-    fontWeight: "700",
-  },
-  input: {
-    backgroundColor: colors.surfaceMuted,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 14,
-    fontSize: 16,
-    color: colors.text,
-  },
-  textArea: {
-    minHeight: 96,
-    textAlignVertical: "top",
-    paddingTop: 14,
-  },
-  cta: {
-    marginTop: spacing.lg,
   },
 })
 

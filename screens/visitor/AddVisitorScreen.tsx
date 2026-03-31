@@ -3,19 +3,20 @@
 import type { RouteProp } from "@react-navigation/native"
 import type { StackNavigationProp } from "@react-navigation/stack"
 import type React from "react"
-import type { ReactNode } from "react"
 import { useState } from "react"
 import {
     Alert,
     KeyboardAvoidingView,
     Platform,
     ScrollView,
+    StatusBar,
     StyleSheet,
     Text,
     TextInput,
     TouchableOpacity,
     View,
 } from "react-native"
+import { SafeAreaView } from "react-native-safe-area-context"
 import { v4 as uuidv4 } from "uuid"
 import AppButton from "../../components/ui/AppButton"
 import type { RootStackParamList } from "../../navigation/AppNavigator"
@@ -30,7 +31,14 @@ interface Props {
   route: AddVisitorScreenRouteProp
 }
 
-type StatusOption = "Single" | "Married" | "Working Class" | "Student"
+const STATUS_OPTIONS = ["First-timer", "Visitor", "Member", "Worker", "Youth", "Child"] as const
+type StatusOption = (typeof STATUS_OPTIONS)[number]
+
+function splitFullName(fullName: string): { firstName: string; lastName?: string } {
+  const parts = fullName.trim().split(/\s+/).filter(Boolean)
+  if (parts.length <= 1) return { firstName: parts[0] || "" }
+  return { firstName: parts[0], lastName: parts.slice(1).join(" ") }
+}
 
 const AddVisitorScreen: React.FC<Props> = ({ navigation, route }) => {
   const { serviceId } = route.params
@@ -38,314 +46,237 @@ const AddVisitorScreen: React.FC<Props> = ({ navigation, route }) => {
   const [phone, setPhone] = useState("")
   const [location, setLocation] = useState("")
   const [email, setEmail] = useState("")
-  const [status, setStatus] = useState<StatusOption[]>([])
+  const [statuses, setStatuses] = useState<StatusOption[]>(["First-timer"])
   const [level, setLevel] = useState("")
   const [inviterName, setInviterName] = useState("")
   const [isLoading, setIsLoading] = useState(false)
 
-  const toggleStatus = (option: StatusOption) => {
-    setStatus((prev) => {
-      if (prev.includes(option)) {
-        return prev.filter((s) => s !== option)
-      }
-      return [...prev, option]
+  const toggleStatus = (s: StatusOption) => {
+    setStatuses((prev) => (prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]))
+  }
+
+  const checkInVisitor = async (visitorLocalId: string) => {
+    await databaseService.createAttendance({
+      local_id: uuidv4(),
+      service_local_id: serviceId,
+      visitor_local_id: visitorLocalId,
+      checked_in_at: new Date().toISOString(),
+      synced: false,
     })
   }
 
-  const handleSaveAndCheckIn = async () => {
+  const handleSubmit = async (checkIn: boolean) => {
     if (!name.trim()) {
-      Alert.alert("Error", "Name is required")
+      Alert.alert("Required", "Please enter the visitor's name.")
       return
     }
 
     setIsLoading(true)
     try {
-      const searchQuery = name.trim()
-      const existingVisitors = await databaseService.searchVisitors(searchQuery)
+      const { firstName, lastName } = splitFullName(name)
+      const phoneTrimmed = phone.trim()
 
-      const exactMatch = existingVisitors.find(
-        (v) =>
-          v.first_name.toLowerCase() === name.trim().toLowerCase() &&
-          v.phone === phone.trim(),
-      )
+      const existing = await databaseService.searchVisitors(name.trim())
+      const dup = existing.find((v) => {
+        const sameName =
+          v.first_name.trim().toLowerCase() === firstName.trim().toLowerCase() &&
+          (v.last_name || "").trim().toLowerCase() === (lastName || "").trim().toLowerCase()
+        const samePhone = (v.phone || "").trim() === phoneTrimmed
+        return sameName && (phoneTrimmed ? samePhone : true)
+      })
 
-      if (exactMatch) {
-        Alert.alert(
-          "Visitor Exists",
-          "A visitor with this name and phone already exists. Would you like to check them in instead?",
-          [
-            { text: "Cancel", style: "cancel" },
-            {
-              text: "Check In",
-              onPress: async () => {
-                await checkInVisitor(exactMatch.local_id)
-              },
+      if (dup) {
+        Alert.alert("Visitor Exists", "This visitor already exists. Would you like to check them in instead?", [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Check In",
+            onPress: async () => {
+              await checkInVisitor(dup.local_id)
+              navigation.goBack()
             },
-          ],
-        )
+          },
+        ])
         return
       }
 
-      const visitorData = {
-        local_id: uuidv4(),
-        first_name: name.trim(),
-        phone: phone.trim() || undefined,
+      const visitorLocalId = uuidv4()
+      await databaseService.createVisitor({
+        local_id: visitorLocalId,
+        first_name: firstName.trim(),
+        last_name: lastName?.trim() || undefined,
+        phone: phoneTrimmed || undefined,
         email: email.trim() || undefined,
         location: location.trim() || undefined,
-        status: status.length > 0 ? status.join(",") : undefined,
+        status: statuses.length ? statuses.join(",") : undefined,
         level: level.trim() || undefined,
         inviter_name: inviterName.trim() || undefined,
         synced: false,
         created_at: new Date().toISOString(),
+      })
+
+      if (checkIn) {
+        await checkInVisitor(visitorLocalId)
       }
 
-      await databaseService.createVisitor(visitorData)
-      await checkInVisitor(visitorData.local_id)
+      navigation.goBack()
     } catch (error) {
       console.error("Error saving visitor:", error)
-      Alert.alert("Error", "Failed to save visitor")
+      Alert.alert("Error", "Could not save visitor. Please try again.")
     } finally {
       setIsLoading(false)
     }
   }
 
-  const checkInVisitor = async (visitorLocalId: string) => {
-    try {
-      const attendanceData = {
-        local_id: uuidv4(),
-        service_local_id: serviceId,
-        visitor_local_id: visitorLocalId,
-        checked_in_at: new Date().toISOString(),
-        synced: false,
-      }
-
-      await databaseService.createAttendance(attendanceData)
-
-      Alert.alert("Success", "Visitor has been added and checked in successfully!", [
-        {
-          text: "OK",
-          onPress: () => navigation.goBack(),
-        },
-      ])
-    } catch (error) {
-      console.error("Error checking in visitor:", error)
-      Alert.alert("Error", "Failed to check in visitor")
-    }
-  }
-
   return (
-    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === "ios" ? "padding" : "height"}>
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        <Text style={styles.heroEyebrow}>Registration</Text>
-        <Text style={styles.title}>Add new visitor</Text>
+    <SafeAreaView style={styles.safe}>
+      <StatusBar barStyle="dark-content" />
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} activeOpacity={0.85}>
+          <Text style={styles.backIcon}>‹</Text>
+        </TouchableOpacity>
+        <Text style={styles.topTitle}>Add Visitor</Text>
+        <View style={styles.topRight} />
+      </View>
 
-        <View style={styles.card}>
-          <Field label="Name *">
-            <TextInput
-              style={styles.input}
-              value={name}
-              onChangeText={setName}
-              placeholder="Full name"
-              placeholderTextColor={colors.textMuted}
-              autoCapitalize="words"
-              editable={!isLoading}
-            />
-          </Field>
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+        <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          <Text style={styles.inputLabel}>Full Name *</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="e.g. Abena Boateng"
+            placeholderTextColor={colors.textMuted}
+            value={name}
+            onChangeText={setName}
+            editable={!isLoading}
+            autoCapitalize="words"
+          />
 
-          <Field label="Phone">
-            <TextInput
-              style={styles.input}
-              value={phone}
-              onChangeText={setPhone}
-              placeholder="Phone number"
-              placeholderTextColor={colors.textMuted}
-              keyboardType="phone-pad"
-              editable={!isLoading}
-            />
-          </Field>
+          <Text style={styles.inputLabel}>Phone Number</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="+233 ..."
+            placeholderTextColor={colors.textMuted}
+            value={phone}
+            onChangeText={setPhone}
+            keyboardType="phone-pad"
+            editable={!isLoading}
+          />
 
-          <Field label="Location">
-            <TextInput
-              style={styles.input}
-              value={location}
-              onChangeText={setLocation}
-              placeholder="Location"
-              placeholderTextColor={colors.textMuted}
-              autoCapitalize="words"
-              editable={!isLoading}
-            />
-          </Field>
+          <Text style={styles.inputLabel}>Location</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="City / Area"
+            placeholderTextColor={colors.textMuted}
+            value={location}
+            onChangeText={setLocation}
+            editable={!isLoading}
+          />
 
-          <Field label="Email">
-            <TextInput
-              style={styles.input}
-              value={email}
-              onChangeText={setEmail}
-              placeholder="Email"
-              placeholderTextColor={colors.textMuted}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              editable={!isLoading}
-            />
-          </Field>
+          <Text style={styles.inputLabel}>Email</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="email@example.com"
+            placeholderTextColor={colors.textMuted}
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+            editable={!isLoading}
+          />
 
-          <Text style={styles.label}>Status</Text>
-          <View style={styles.checkboxContainer}>
-            {(["Single", "Married", "Working Class", "Student"] as StatusOption[]).map((option) => (
+          <Text style={styles.inputLabel}>Status</Text>
+          <View style={styles.tagRow}>
+            {STATUS_OPTIONS.map((s) => (
               <TouchableOpacity
-                key={option}
-                style={styles.checkboxRow}
-                onPress={() => toggleStatus(option)}
-                disabled={isLoading}
+                key={s}
+                style={[styles.tag, statuses.includes(s) && styles.tagSelected]}
+                onPress={() => toggleStatus(s)}
                 activeOpacity={0.85}
+                disabled={isLoading}
               >
-                <View style={[styles.checkbox, status.includes(option) && styles.checkboxChecked]}>
-                  {status.includes(option) ? <Text style={styles.checkmark}>✓</Text> : null}
-                </View>
-                <Text style={styles.checkboxLabel}>{option}</Text>
+                <Text style={[styles.tagText, statuses.includes(s) && styles.tagTextSelected]}>{s}</Text>
               </TouchableOpacity>
             ))}
           </View>
 
-          <Field label="Level">
-            <TextInput
-              style={styles.input}
-              value={level}
-              onChangeText={setLevel}
-              placeholder="Level"
-              placeholderTextColor={colors.textMuted}
-              autoCapitalize="words"
-              editable={!isLoading}
-            />
-          </Field>
-
-          <Field label="Invited by">
-            <TextInput
-              style={styles.input}
-              value={inviterName}
-              onChangeText={setInviterName}
-              placeholder="Who invited this person?"
-              placeholderTextColor={colors.textMuted}
-              autoCapitalize="words"
-              editable={!isLoading}
-            />
-          </Field>
-
-          <AppButton
-            title="Save & check in"
-            onPress={handleSaveAndCheckIn}
-            loading={isLoading}
-            disabled={isLoading}
-            style={styles.cta}
+          <Text style={styles.inputLabel}>Level</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="e.g. New Convert, Established..."
+            placeholderTextColor={colors.textMuted}
+            value={level}
+            onChangeText={setLevel}
+            editable={!isLoading}
           />
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
-  )
-}
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <View style={styles.field}>
-      <Text style={styles.label}>{label}</Text>
-      {children}
-    </View>
+          <Text style={styles.inputLabel}>Invited By</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Member's name..."
+            placeholderTextColor={colors.textMuted}
+            value={inviterName}
+            onChangeText={setInviterName}
+            editable={!isLoading}
+          />
+
+          <View style={styles.ctaWrap}>
+            <AppButton title="Register & Check In →" onPress={() => handleSubmit(true)} loading={isLoading} disabled={isLoading} />
+            <AppButton title="Save Without Checking In" variant="outline" onPress={() => handleSubmit(false)} disabled={isLoading} style={styles.secondaryCta} />
+          </View>
+          <View style={{ height: spacing.xl }} />
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   )
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.canvas,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  content: {
-    padding: spacing.md,
-    paddingBottom: spacing.xl * 2,
-  },
-  heroEyebrow: {
-    ...typography.small,
-    color: colors.cyan,
-    textTransform: "uppercase",
-    letterSpacing: 1,
-    marginBottom: spacing.xs,
-  },
-  title: {
-    fontSize: 26,
-    fontWeight: "800",
-    color: colors.text,
-    letterSpacing: -0.5,
-    marginBottom: spacing.lg,
-  },
-  card: {
+  safe: { flex: 1, backgroundColor: colors.canvas },
+  flex: { flex: 1 },
+  topBar: { flexDirection: "row", alignItems: "center", paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: radii.pill,
     backgroundColor: colors.surface,
-    borderRadius: radii.xl,
-    padding: spacing.lg,
-    ...shadowSoft,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-  },
-  field: {
-    marginBottom: spacing.md,
-  },
-  label: {
-    ...typography.subtitle,
-    color: colors.text,
-    marginBottom: spacing.xs,
-  },
-  input: {
-    backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radii.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 14,
-    fontSize: 16,
-    color: colors.text,
-  },
-  checkboxContainer: {
-    gap: spacing.sm,
-    marginTop: spacing.xs,
-    marginBottom: spacing.md,
-  },
-  checkboxRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  checkbox: {
-    width: 26,
-    height: 26,
-    borderWidth: 2,
-    borderColor: colors.primary,
-    borderRadius: radii.sm,
     alignItems: "center",
     justifyContent: "center",
+    ...shadowSoft,
+  },
+  backIcon: { fontSize: 22, color: colors.primary, marginTop: -2 },
+  topTitle: { flex: 1, textAlign: "center", ...typography.title, color: colors.text },
+  topRight: { width: 36 },
+
+  scroll: { flex: 1, paddingHorizontal: spacing.md },
+  inputLabel: { ...typography.small, color: colors.textSecondary, marginBottom: 6, marginTop: 4 },
+  input: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 13,
+    fontSize: 15,
+    color: colors.text,
+    marginBottom: 12,
+    ...shadowSoft,
+  },
+  tagRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 },
+  tag: {
+    paddingVertical: 7,
+    paddingHorizontal: 14,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
     backgroundColor: colors.surface,
   },
-  checkboxChecked: {
-    backgroundColor: colors.primary,
-  },
-  checkmark: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "800",
-  },
-  checkboxLabel: {
-    ...typography.body,
-    color: colors.text,
-  },
-  cta: {
-    marginTop: spacing.md,
-  },
+  tagSelected: { borderColor: colors.primary, backgroundColor: colors.canvasAlt },
+  tagText: { ...typography.caption, fontWeight: "700", color: colors.textSecondary },
+  tagTextSelected: { color: colors.primary },
+  ctaWrap: { marginTop: 8, gap: spacing.sm },
+  secondaryCta: { marginTop: 0 },
 })
 
 export default AddVisitorScreen

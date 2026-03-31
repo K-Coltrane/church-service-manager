@@ -5,7 +5,8 @@ import { useFocusEffect } from "@react-navigation/native"
 import type { StackNavigationProp } from "@react-navigation/stack"
 import type React from "react"
 import { useCallback, useState } from "react"
-import { Alert, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native"
+import { Alert, FlatList, RefreshControl, StatusBar, StyleSheet, Text, TouchableOpacity, View } from "react-native"
+import { SafeAreaView } from "react-native-safe-area-context"
 import AppButton from "../../components/ui/AppButton"
 import type { RootStackParamList } from "../../navigation/AppNavigator"
 import { databaseService, type Attendance, type Service, type Visitor } from "../../services/database"
@@ -19,19 +20,28 @@ interface Props {
   route: ActiveServiceScreenRouteProp
 }
 
+function initials(name: string) {
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase()
+}
+
 const ActiveServiceScreen: React.FC<Props> = ({ navigation, route }) => {
   const { serviceId } = route.params
   const [service, setService] = useState<Service | null>(null)
   const [attendance, setAttendance] = useState<Array<Attendance & { visitor: Visitor }>>([])
   const [refreshing, setRefreshing] = useState(false)
 
-  const loadServiceData = async () => {
+  const load = async () => {
     try {
       const serviceData = await databaseService.getActiveService()
       if (serviceData && serviceData.local_id === serviceId) {
         setService(serviceData)
       }
-
       const attendanceData = await databaseService.getServiceAttendance(serviceId)
       setAttendance(attendanceData)
     } catch (error) {
@@ -41,18 +51,18 @@ const ActiveServiceScreen: React.FC<Props> = ({ navigation, route }) => {
 
   useFocusEffect(
     useCallback(() => {
-      loadServiceData()
+      load()
     }, [serviceId]),
   )
 
   const onRefresh = async () => {
     setRefreshing(true)
-    await loadServiceData()
+    await load()
     setRefreshing(false)
   }
 
   const handleEndService = () => {
-    Alert.alert("End Service", "Are you sure you want to end this service? This action cannot be undone.", [
+    Alert.alert("End Service", "Are you sure you want to end this service?", [
       { text: "Cancel", style: "cancel" },
       {
         text: "End Service",
@@ -60,9 +70,7 @@ const ActiveServiceScreen: React.FC<Props> = ({ navigation, route }) => {
         onPress: async () => {
           try {
             await databaseService.endService(serviceId, new Date().toISOString())
-            Alert.alert("Service Ended", "Service has been ended successfully!", [
-              { text: "OK", onPress: () => navigation.navigate("Home") },
-            ])
+            navigation.replace("Home")
           } catch (error) {
             console.error("Error ending service:", error)
             Alert.alert("Error", "Failed to end service")
@@ -74,231 +82,172 @@ const ActiveServiceScreen: React.FC<Props> = ({ navigation, route }) => {
 
   if (!service) {
     return (
-      <View style={styles.loadingContainer}>
+      <SafeAreaView style={styles.loading}>
+        <StatusBar barStyle="dark-content" />
         <Text style={styles.loadingText}>Loading service...</Text>
-      </View>
+      </SafeAreaView>
     )
   }
 
+  const newVisitors = 0
+
   return (
-    <View style={styles.container}>
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
-        }
-        showsVerticalScrollIndicator
-      >
-        <View style={styles.serviceCard}>
-          <View style={styles.cardAccent} />
-          <Text style={styles.serviceType}>{service.service_type_name}</Text>
-          {service.location ? <Text style={styles.serviceMeta}>{service.location}</Text> : null}
-          <Text style={styles.serviceMeta}>Started {new Date(service.started_at).toLocaleString()}</Text>
-          {service.notes ? <Text style={styles.serviceNotes}>{service.notes}</Text> : null}
-        </View>
+    <SafeAreaView style={styles.safe}>
+      <StatusBar barStyle="dark-content" />
 
-        <View style={styles.statCard}>
-          <Text style={styles.statNumber}>{attendance.length}</Text>
-          <Text style={styles.statLabel}>Check-ins this service</Text>
-        </View>
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} activeOpacity={0.85}>
+          <Text style={styles.backIcon}>‹</Text>
+        </TouchableOpacity>
+        <Text style={styles.topTitle}>Active Service</Text>
+        <View style={styles.topRight} />
+      </View>
 
-        <View style={styles.actions}>
-          <AppButton title="Add new visitor" onPress={() => navigation.navigate("AddVisitor", { serviceId })} />
-          <AppButton
-            title="Check in existing visitor"
-            onPress={() => navigation.navigate("SearchVisitor", { serviceId })}
-            variant="outline"
-          />
-        </View>
-
-        <Text style={styles.sectionTitle}>Recent check-ins</Text>
-        {attendance.length > 0 ? (
-          attendance.map((item) => (
-            <View key={item.local_id} style={styles.attendeeItem}>
-              <View style={styles.attendeeDot} />
-              <View style={styles.attendeeInfo}>
-                <Text style={styles.attendeeName}>
-                  {item.visitor.first_name} {item.visitor.last_name}
-                </Text>
-                {item.visitor.phone ? <Text style={styles.attendeePhone}>{item.visitor.phone}</Text> : null}
+      <FlatList
+        data={attendance}
+        keyExtractor={(item) => item.local_id}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: spacing.xl }}
+        ListHeaderComponent={() => (
+          <View style={styles.header}>
+            <View style={styles.serviceCard}>
+              <Text style={styles.serviceType}>{service.service_type_name || "Service"}</Text>
+              <Text style={styles.serviceCount}>{attendance.length} Checked In</Text>
+              <View style={styles.serviceStats}>
+                <View>
+                  <Text style={styles.serviceStatNum}>{newVisitors}</Text>
+                  <Text style={styles.serviceStatLbl}>New visitors</Text>
+                </View>
+                <View>
+                  <Text style={styles.serviceStatNum}>{Math.max(0, attendance.length - newVisitors)}</Text>
+                  <Text style={styles.serviceStatLbl}>Returning</Text>
+                </View>
               </View>
-              <Text style={styles.checkInTime}>{new Date(item.checked_in_at).toLocaleTimeString()}</Text>
             </View>
-          ))
-        ) : (
-          <View style={styles.emptyHint}>
-            <Text style={styles.emptyHintText}>No check-ins yet — add or search for a visitor.</Text>
+
+            <AppButton title="+ Add New Visitor" onPress={() => navigation.navigate("AddVisitor", { serviceId })} />
+            <AppButton
+              title="Search & Check In"
+              variant="secondary"
+              onPress={() => navigation.navigate("SearchVisitor", { serviceId })}
+              style={styles.secondaryBtn}
+            />
+            <Text style={styles.sectionTitle}>Attendance ({attendance.length})</Text>
           </View>
         )}
-      </ScrollView>
+        renderItem={({ item }) => {
+          const fullName = `${item.visitor.first_name} ${item.visitor.last_name ?? ""}`.trim() || "—"
+          const time = item.checked_in_at
+            ? new Date(item.checked_in_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+            : ""
 
-      <View style={styles.bottomActions}>
-        <TouchableOpacity style={styles.endServiceButton} onPress={handleEndService} activeOpacity={0.9}>
-          <Text style={styles.endServiceButtonText}>End service</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+          return (
+            <View style={styles.attendeeRow}>
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>{initials(fullName)}</Text>
+              </View>
+              <View style={styles.attendeeInfo}>
+                <Text style={styles.attendeeName}>{fullName}</Text>
+                <Text style={styles.attendeeMeta}>
+                  {(item.visitor.phone || "Checked in") + (time ? ` · ${time}` : "")}
+                </Text>
+              </View>
+              <View style={styles.checkBadge}>
+                <Text style={styles.checkIcon}>✓</Text>
+              </View>
+            </View>
+          )
+        }}
+        ListFooterComponent={() => (
+          <View style={styles.footer}>
+            <AppButton title="End Service" variant="danger" onPress={handleEndService} />
+            <View style={{ height: spacing.lg }} />
+          </View>
+        )}
+      />
+    </SafeAreaView>
   )
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.canvas,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: colors.canvas,
-  },
-  loadingText: {
-    ...typography.body,
-    color: colors.textSecondary,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: spacing.md,
-    paddingBottom: 120,
-  },
-  serviceCard: {
+  safe: { flex: 1, backgroundColor: colors.canvas },
+  loading: { flex: 1, backgroundColor: colors.canvas, alignItems: "center", justifyContent: "center" },
+  loadingText: { ...typography.body, color: colors.textSecondary },
+
+  topBar: { flexDirection: "row", alignItems: "center", paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: radii.pill,
     backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+    ...shadowSoft,
+  },
+  backIcon: { fontSize: 22, color: colors.primary, marginTop: -2 },
+  topTitle: { flex: 1, textAlign: "center", ...typography.title, color: colors.text },
+  topRight: { width: 36 },
+
+  header: { paddingHorizontal: spacing.md },
+  serviceCard: {
+    backgroundColor: colors.primaryDark,
     borderRadius: radii.xl,
     padding: spacing.lg,
     marginBottom: spacing.md,
-    overflow: "hidden",
     ...shadowCard,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
   },
-  cardAccent: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    top: 0,
-    height: 4,
-    backgroundColor: colors.primary,
-  },
-  serviceType: {
-    fontSize: 22,
-    fontWeight: "800",
-    color: colors.text,
-    marginTop: spacing.sm,
-    marginBottom: spacing.xs,
-  },
-  serviceMeta: {
-    ...typography.body,
-    color: colors.textSecondary,
-    marginBottom: 4,
-  },
-  serviceNotes: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    fontStyle: "italic",
-    marginTop: spacing.xs,
-  },
-  statCard: {
-    backgroundColor: colors.cyanSoft,
-    borderRadius: radii.lg,
-    padding: spacing.lg,
-    alignItems: "center",
-    marginBottom: spacing.lg,
-    borderWidth: 1,
-    borderColor: "#a5f3fc",
-  },
-  statNumber: {
-    fontSize: 40,
-    fontWeight: "800",
-    color: colors.primaryDark,
-  },
-  statLabel: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    marginTop: 4,
-    fontWeight: "600",
-  },
-  actions: {
-    marginBottom: spacing.lg,
-    gap: spacing.sm,
-  },
-  sectionTitle: {
-    ...typography.title,
-    color: colors.text,
-    marginBottom: spacing.md,
-  },
-  attendeeItem: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.lg,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
+  serviceType: { ...typography.small, color: "rgba(255,255,255,0.72)", textTransform: "uppercase", letterSpacing: 0.7 },
+  serviceCount: { fontSize: 22, fontWeight: "800", color: "#fff", marginTop: 4, marginBottom: spacing.md },
+  serviceStats: { flexDirection: "row", gap: 22 },
+  serviceStatNum: { fontSize: 20, fontWeight: "800", color: "#fff" },
+  serviceStatLbl: { ...typography.caption, color: "rgba(255,255,255,0.72)" },
+
+  secondaryBtn: { marginTop: spacing.sm },
+  sectionTitle: { ...typography.subtitle, color: colors.text, marginTop: spacing.md, marginBottom: spacing.sm },
+
+  attendeeRow: {
     flexDirection: "row",
     alignItems: "center",
-    ...shadowSoft,
+    padding: spacing.md,
+    marginHorizontal: spacing.md,
+    marginBottom: spacing.sm,
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: colors.borderLight,
-  },
-  attendeeDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.mint,
-    marginRight: spacing.sm,
-  },
-  attendeeInfo: {
-    flex: 1,
-  },
-  attendeeName: {
-    ...typography.subtitle,
-    color: colors.text,
-  },
-  attendeePhone: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  checkInTime: {
-    ...typography.small,
-    color: colors.textMuted,
-    fontWeight: "600",
-  },
-  emptyHint: {
-    padding: spacing.lg,
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  emptyHintText: {
-    ...typography.body,
-    color: colors.textSecondary,
-    textAlign: "center",
-  },
-  bottomActions: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: colors.surface,
-    padding: spacing.md,
-    paddingBottom: spacing.lg,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
     ...shadowSoft,
   },
-  endServiceButton: {
-    backgroundColor: colors.error,
-    borderRadius: radii.lg,
-    paddingVertical: 16,
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: radii.pill,
+    backgroundColor: colors.canvasAlt,
     alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    marginRight: 12,
   },
-  endServiceButtonText: {
-    color: "#fff",
-    fontSize: 17,
-    fontWeight: "800",
+  avatarText: { ...typography.caption, fontWeight: "800", color: colors.primaryDark },
+  attendeeInfo: { flex: 1, minWidth: 0 },
+  attendeeName: { ...typography.subtitle, color: colors.text },
+  attendeeMeta: { ...typography.caption, color: colors.textSecondary, marginTop: 2 },
+  checkBadge: {
+    width: 24,
+    height: 24,
+    borderRadius: radii.pill,
+    backgroundColor: colors.mintSoft,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#a7f3d0",
   },
+  checkIcon: { fontSize: 12, color: colors.mint, fontWeight: "900" },
+
+  footer: { paddingHorizontal: spacing.md, paddingTop: spacing.md },
 })
 
 export default ActiveServiceScreen

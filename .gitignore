@@ -37,3 +37,7 @@ yarn-error.*
 *.tsbuildinfo
 
 app-example
+
+# Design reference artifacts (do not commit)
+gatherpoint-screens/
+gatherpoint-screens.zip
