@@ -4,6 +4,29 @@ import { databaseService } from "./database"
 
 export type SyncStatus = "synced" | "pending" | "error" | "syncing"
 
+const normalizeVisitorName = (firstName: string, lastName?: string) => {
+  const trimmedFirst = (firstName || "").trim()
+  const trimmedLast = (lastName || "").trim()
+
+  if (trimmedLast) {
+    return { firstName: trimmedFirst || trimmedLast, lastName: trimmedLast }
+  }
+
+  if (!trimmedFirst) {
+    return { firstName: "Unknown", lastName: "Unknown" }
+  }
+
+  const parts = trimmedFirst.split(/\s+/)
+  if (parts.length === 1) {
+    return { firstName: trimmedFirst, lastName: "Unknown" }
+  }
+
+  const [first, ...rest] = parts
+  const derivedLast = rest.join(" ").trim()
+
+  return { firstName: first, lastName: derivedLast || "Unknown" }
+}
+
 class SyncService {
   private syncInProgress = false
   private listeners: Array<(status: SyncStatus) => void> = []
@@ -122,10 +145,12 @@ class SyncService {
 
     for (const visitor of visitors) {
       try {
+        const normalizedName = normalizeVisitorName(visitor.first_name, visitor.last_name)
+
         // Sync to Supabase (via apiService which tries Supabase first)
         const response = await apiService.syncVisitor({
-          first_name: visitor.first_name,
-          last_name: visitor.last_name,
+          first_name: normalizedName.firstName,
+          last_name: normalizedName.lastName,
           phone: visitor.phone,
           email: visitor.email,
           inviter_name: visitor.inviter_name,
