@@ -1,7 +1,7 @@
 {
   "expo": {
     "sdkVersion": "54.0.0",
-    "name": "Church Service Manager",
+    "name": "TBC Manager",
     "slug": "church-service-manager",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -19,8 +19,8 @@
       "supportsTablet": true
     },
     "android": {
-      "package": "com.churchservice.manager",
-      "versionCode": 1,
+      "package": "com.churchservice.manager.tbcdbapk",
+      "versionCode": 2,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/logo.png",
         "backgroundColor": "#FFFFFF"
