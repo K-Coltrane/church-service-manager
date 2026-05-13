@@ -19,9 +19,10 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context"
 import { v4 as uuidv4 } from "uuid"
 import AppButton from "../../components/ui/AppButton"
+import ScreenHeader from "../../components/ui/ScreenHeader"
 import type { RootStackParamList } from "../../navigation/AppNavigator"
 import { databaseService } from "../../services/database"
-import { colors, radii, shadowSoft, spacing, typography } from "../../theme/modernTheme"
+import { colors, radii, spacing, typography } from "../../theme/modernTheme"
 
 type AddVisitorScreenNavigationProp = StackNavigationProp<RootStackParamList, "AddVisitor">
 type AddVisitorScreenRouteProp = RouteProp<RootStackParamList, "AddVisitor">
@@ -130,13 +131,7 @@ const AddVisitorScreen: React.FC<Props> = ({ navigation, route }) => {
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar barStyle="dark-content" />
-      <View style={styles.topBar}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} activeOpacity={0.85}>
-          <Text style={styles.backIcon}>‹</Text>
-        </TouchableOpacity>
-        <Text style={styles.topTitle}>Add Visitor</Text>
-        <View style={styles.topRight} />
-      </View>
+      <ScreenHeader title="Add Visitor" onBack={() => navigation.goBack()} />
 
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : "height"}>
         <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
@@ -187,17 +182,20 @@ const AddVisitorScreen: React.FC<Props> = ({ navigation, route }) => {
 
           <Text style={styles.inputLabel}>Status</Text>
           <View style={styles.tagRow}>
-            {STATUS_OPTIONS.map((s) => (
-              <TouchableOpacity
-                key={s}
-                style={[styles.tag, statuses.includes(s) && styles.tagSelected]}
-                onPress={() => toggleStatus(s)}
-                activeOpacity={0.85}
-                disabled={isLoading}
-              >
-                <Text style={[styles.tagText, statuses.includes(s) && styles.tagTextSelected]}>{s}</Text>
-              </TouchableOpacity>
-            ))}
+            {STATUS_OPTIONS.map((s) => {
+              const selected = statuses.includes(s)
+              return (
+                <TouchableOpacity
+                  key={s}
+                  style={[styles.tag, selected && styles.tagSelected]}
+                  onPress={() => toggleStatus(s)}
+                  activeOpacity={0.8}
+                  disabled={isLoading}
+                >
+                  <Text style={[styles.tagText, selected && styles.tagTextSelected]}>{s}</Text>
+                </TouchableOpacity>
+              )
+            })}
           </View>
 
           <Text style={styles.inputLabel}>Level</Text>
@@ -221,8 +219,14 @@ const AddVisitorScreen: React.FC<Props> = ({ navigation, route }) => {
           />
 
           <View style={styles.ctaWrap}>
-            <AppButton title="Register & Check In →" onPress={() => handleSubmit(true)} loading={isLoading} disabled={isLoading} />
-            <AppButton title="Save Without Checking In" variant="outline" onPress={() => handleSubmit(false)} disabled={isLoading} style={styles.secondaryCta} />
+            <AppButton title="Register & Check In" onPress={() => handleSubmit(true)} loading={isLoading} disabled={isLoading} />
+            <AppButton
+              title="Save Without Checking In"
+              variant="outline"
+              onPress={() => handleSubmit(false)}
+              disabled={isLoading}
+              style={styles.secondaryCta}
+            />
           </View>
           <View style={{ height: spacing.xl }} />
         </ScrollView>
@@ -234,47 +238,34 @@ const AddVisitorScreen: React.FC<Props> = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.canvas },
   flex: { flex: 1 },
-  topBar: { flexDirection: "row", alignItems: "center", paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
-  backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: radii.pill,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: "center",
-    justifyContent: "center",
-    ...shadowSoft,
-  },
-  backIcon: { fontSize: 22, color: colors.primary, marginTop: -2 },
-  topTitle: { flex: 1, textAlign: "center", ...typography.title, color: colors.text },
-  topRight: { width: 36 },
+  scroll: { flex: 1, paddingHorizontal: spacing.lg },
 
-  scroll: { flex: 1, paddingHorizontal: spacing.md },
-  inputLabel: { ...typography.small, color: colors.textSecondary, marginBottom: 6, marginTop: 4 },
+  inputLabel: { ...typography.label, color: colors.textSecondary, marginBottom: 6, marginTop: 4 },
   input: {
     backgroundColor: colors.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: 13,
+    padding: 14,
     fontSize: 15,
     color: colors.text,
     marginBottom: 12,
-    ...shadowSoft,
   },
   tagRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 },
   tag: {
-    paddingVertical: 7,
+    paddingVertical: 8,
     paddingHorizontal: 14,
     borderRadius: radii.pill,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
   },
-  tagSelected: { borderColor: colors.primary, backgroundColor: colors.canvasAlt },
-  tagText: { ...typography.caption, fontWeight: "700", color: colors.textSecondary },
-  tagTextSelected: { color: colors.primary },
+  tagSelected: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryBg,
+  },
+  tagText: { ...typography.caption, fontWeight: "600", color: colors.textSecondary },
+  tagTextSelected: { color: colors.primaryDark },
   ctaWrap: { marginTop: 8, gap: spacing.sm },
   secondaryCta: { marginTop: 0 },
 })

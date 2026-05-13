@@ -5,9 +5,10 @@ import { useFocusEffect } from "@react-navigation/native"
 import type { StackNavigationProp } from "@react-navigation/stack"
 import type React from "react"
 import { useCallback, useState } from "react"
-import { Alert, FlatList, RefreshControl, StatusBar, StyleSheet, Text, TouchableOpacity, View } from "react-native"
+import { Alert, FlatList, RefreshControl, StatusBar, StyleSheet, Text, View } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import AppButton from "../../components/ui/AppButton"
+import ScreenHeader from "../../components/ui/ScreenHeader"
 import type { RootStackParamList } from "../../navigation/AppNavigator"
 import { databaseService, type Attendance, type Service, type Visitor } from "../../services/database"
 import { colors, radii, shadowCard, shadowSoft, spacing, typography } from "../../theme/modernTheme"
@@ -94,14 +95,7 @@ const ActiveServiceScreen: React.FC<Props> = ({ navigation, route }) => {
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar barStyle="dark-content" />
-
-      <View style={styles.topBar}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} activeOpacity={0.85}>
-          <Text style={styles.backIcon}>‹</Text>
-        </TouchableOpacity>
-        <Text style={styles.topTitle}>Active Service</Text>
-        <View style={styles.topRight} />
-      </View>
+      <ScreenHeader title="Active Service" onBack={() => navigation.goBack()} />
 
       <FlatList
         data={attendance}
@@ -112,28 +106,32 @@ const ActiveServiceScreen: React.FC<Props> = ({ navigation, route }) => {
         ListHeaderComponent={() => (
           <View style={styles.header}>
             <View style={styles.serviceCard}>
+              <Text style={styles.serviceLabel}>Now In Session</Text>
               <Text style={styles.serviceType}>{service.service_type_name || "Service"}</Text>
-              <Text style={styles.serviceCount}>{attendance.length} Checked In</Text>
+              <View style={styles.serviceDivider} />
+              <Text style={styles.serviceCount}>{attendance.length}</Text>
+              <Text style={styles.serviceCountLbl}>Total Checked In</Text>
               <View style={styles.serviceStats}>
-                <View>
+                <View style={styles.statBlock}>
                   <Text style={styles.serviceStatNum}>{newVisitors}</Text>
                   <Text style={styles.serviceStatLbl}>New visitors</Text>
                 </View>
-                <View>
+                <View style={styles.statDivider} />
+                <View style={styles.statBlock}>
                   <Text style={styles.serviceStatNum}>{Math.max(0, attendance.length - newVisitors)}</Text>
                   <Text style={styles.serviceStatLbl}>Returning</Text>
                 </View>
               </View>
             </View>
 
-            <AppButton title="+ Add New Visitor" onPress={() => navigation.navigate("AddVisitor", { serviceId })} />
+            <AppButton title="Add New Visitor" onPress={() => navigation.navigate("AddVisitor", { serviceId })} />
             <AppButton
               title="Search & Check In"
               variant="secondary"
               onPress={() => navigation.navigate("SearchVisitor", { serviceId })}
               style={styles.secondaryBtn}
             />
-            <Text style={styles.sectionTitle}>Attendance ({attendance.length})</Text>
+            <Text style={styles.sectionLabel}>Attendance ({attendance.length})</Text>
           </View>
         )}
         renderItem={({ item }) => {
@@ -173,25 +171,9 @@ const ActiveServiceScreen: React.FC<Props> = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.canvas },
   loading: { flex: 1, backgroundColor: colors.canvas, alignItems: "center", justifyContent: "center" },
-  loadingText: { ...typography.body, color: colors.textSecondary },
+  loadingText: { ...typography.bodySmall, color: colors.textSecondary },
 
-  topBar: { flexDirection: "row", alignItems: "center", paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
-  backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: radii.pill,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: "center",
-    justifyContent: "center",
-    ...shadowSoft,
-  },
-  backIcon: { fontSize: 22, color: colors.primary, marginTop: -2 },
-  topTitle: { flex: 1, textAlign: "center", ...typography.title, color: colors.text },
-  topRight: { width: 36 },
-
-  header: { paddingHorizontal: spacing.md },
+  header: { paddingHorizontal: spacing.lg },
   serviceCard: {
     backgroundColor: colors.primaryDark,
     borderRadius: radii.xl,
@@ -199,55 +181,90 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
     ...shadowCard,
   },
-  serviceType: { ...typography.small, color: "rgba(255,255,255,0.72)", textTransform: "uppercase", letterSpacing: 0.7 },
-  serviceCount: { fontSize: 22, fontWeight: "800", color: "#fff", marginTop: 4, marginBottom: spacing.md },
-  serviceStats: { flexDirection: "row", gap: 22 },
-  serviceStatNum: { fontSize: 20, fontWeight: "800", color: "#fff" },
-  serviceStatLbl: { ...typography.caption, color: "rgba(255,255,255,0.72)" },
+  serviceLabel: {
+    ...typography.label,
+    color: "rgba(255,255,255,0.6)",
+    marginBottom: 4,
+  },
+  serviceType: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#fff",
+    letterSpacing: -0.3,
+  },
+  serviceDivider: {
+    height: 1,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    marginVertical: spacing.md,
+  },
+  serviceCount: {
+    fontSize: 36,
+    fontWeight: "700",
+    color: "#fff",
+    letterSpacing: -1,
+  },
+  serviceCountLbl: {
+    ...typography.bodySmall,
+    color: "rgba(255,255,255,0.7)",
+    marginBottom: spacing.md,
+  },
+  serviceStats: { flexDirection: "row", alignItems: "center" },
+  statBlock: { flex: 1 },
+  statDivider: {
+    width: 1,
+    height: 32,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    marginHorizontal: spacing.md,
+  },
+  serviceStatNum: { fontSize: 20, fontWeight: "700", color: "#fff" },
+  serviceStatLbl: { ...typography.caption, color: "rgba(255,255,255,0.65)", marginTop: 2 },
 
   secondaryBtn: { marginTop: spacing.sm },
-  sectionTitle: { ...typography.subtitle, color: colors.text, marginTop: spacing.md, marginBottom: spacing.sm },
+  sectionLabel: {
+    ...typography.label,
+    color: colors.textSecondary,
+    marginTop: spacing.lg,
+    marginBottom: spacing.sm,
+  },
 
   attendeeRow: {
     flexDirection: "row",
     alignItems: "center",
     padding: spacing.md,
-    marginHorizontal: spacing.md,
+    marginHorizontal: spacing.lg,
     marginBottom: spacing.sm,
     backgroundColor: colors.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.borderLight,
+    borderColor: colors.border,
     ...shadowSoft,
   },
   avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: radii.pill,
-    backgroundColor: colors.canvasAlt,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: colors.primaryBg,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: colors.borderLight,
+    borderColor: colors.primaryLight,
     marginRight: 12,
   },
-  avatarText: { ...typography.caption, fontWeight: "800", color: colors.primaryDark },
+  avatarText: { fontSize: 13, fontWeight: "700", color: colors.primaryDark },
   attendeeInfo: { flex: 1, minWidth: 0 },
-  attendeeName: { ...typography.subtitle, color: colors.text },
+  attendeeName: { ...typography.h4, color: colors.text },
   attendeeMeta: { ...typography.caption, color: colors.textSecondary, marginTop: 2 },
   checkBadge: {
-    width: 24,
-    height: 24,
-    borderRadius: radii.pill,
-    backgroundColor: colors.mintSoft,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: colors.primaryDark,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "#a7f3d0",
   },
-  checkIcon: { fontSize: 12, color: colors.mint, fontWeight: "900" },
+  checkIcon: { fontSize: 12, color: "#fff", fontWeight: "700" },
 
-  footer: { paddingHorizontal: spacing.md, paddingTop: spacing.md },
+  footer: { paddingHorizontal: spacing.lg, paddingTop: spacing.md },
 })
 
 export default ActiveServiceScreen

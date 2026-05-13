@@ -7,6 +7,7 @@ import { useCallback, useState } from "react"
 import { ActivityIndicator, Alert, FlatList, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { v4 as uuidv4 } from "uuid"
+import ScreenHeader from "../../components/ui/ScreenHeader"
 import type { RootStackParamList } from "../../navigation/AppNavigator"
 import { apiService } from "../../services/api"
 import { databaseService, type Visitor } from "../../services/database"
@@ -18,13 +19,6 @@ type SearchVisitorScreenRouteProp = RouteProp<RootStackParamList, "SearchVisitor
 interface Props {
   navigation: SearchVisitorScreenNavigationProp
   route: SearchVisitorScreenRouteProp
-}
-
-const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
-  Member: { bg: "#d1fae5", text: "#065f46" },
-  Visitor: { bg: "#dbeafe", text: "#1a6fd4" },
-  "First-timer": { bg: "#fef3c7", text: "#92400e" },
-  Worker: { bg: "#f3f4f6", text: "#374151" },
 }
 
 function initials(name: string) {
@@ -103,17 +97,9 @@ const SearchVisitorScreen: React.FC<Props> = ({ navigation, route }) => {
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar barStyle="dark-content" />
-
-      <View style={styles.topBar}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} activeOpacity={0.85}>
-          <Text style={styles.backIcon}>‹</Text>
-        </TouchableOpacity>
-        <Text style={styles.topTitle}>Check In Visitor</Text>
-        <View style={styles.topRight} />
-      </View>
+      <ScreenHeader title="Check In Visitor" onBack={() => navigation.goBack()} />
 
       <View style={styles.searchRow}>
-        <Text style={styles.searchIcon}>🔍</Text>
         <TextInput
           style={styles.searchInput}
           placeholder="Search by name or phone..."
@@ -132,11 +118,10 @@ const SearchVisitorScreen: React.FC<Props> = ({ navigation, route }) => {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={styles.listContent}
-        ListHeaderComponent={visitors.length > 0 ? <Text style={styles.sectionTitle}>Results ({visitors.length})</Text> : null}
+        ListHeaderComponent={visitors.length > 0 ? <Text style={styles.sectionLabel}>Results ({visitors.length})</Text> : null}
         renderItem={({ item }) => {
           const name = `${item.first_name} ${item.last_name ?? ""}`.trim() || "—"
           const statusLabel = (item.status || "Visitor").split(",")[0]?.trim() || "Visitor"
-          const sc = STATUS_COLORS[statusLabel] ?? STATUS_COLORS.Visitor
           return (
             <View style={styles.visitorCard}>
               <View style={styles.avatar}>
@@ -147,14 +132,14 @@ const SearchVisitorScreen: React.FC<Props> = ({ navigation, route }) => {
                 <Text style={styles.visitorMeta}>
                   {(item.phone || "—") + (item.location ? ` · ${item.location}` : "")}
                 </Text>
-                <View style={[styles.badge, { backgroundColor: sc.bg }]}>
-                  <Text style={[styles.badgeText, { color: sc.text }]}>{statusLabel}</Text>
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>{statusLabel}</Text>
                 </View>
               </View>
               <TouchableOpacity
                 style={styles.checkInBtn}
                 onPress={() => handleCheckIn(item)}
-                activeOpacity={0.85}
+                activeOpacity={0.8}
                 disabled={checkingInId === item.local_id}
               >
                 {checkingInId === item.local_id ? (
@@ -171,8 +156,12 @@ const SearchVisitorScreen: React.FC<Props> = ({ navigation, route }) => {
             <View style={styles.emptyWrap}>
               <Text style={styles.emptyText}>No visitors found</Text>
               <Text style={styles.emptySub}>Try a different search or register a new visitor</Text>
-              <TouchableOpacity style={styles.emptyBtn} onPress={() => navigation.navigate("AddVisitor", { serviceId })} activeOpacity={0.85}>
-                <Text style={styles.emptyBtnText}>+ Register New Visitor</Text>
+              <TouchableOpacity
+                style={styles.emptyBtn}
+                onPress={() => navigation.navigate("AddVisitor", { serviceId })}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.emptyBtnText}>Register New Visitor</Text>
               </TouchableOpacity>
             </View>
           ) : (
@@ -188,41 +177,25 @@ const SearchVisitorScreen: React.FC<Props> = ({ navigation, route }) => {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.canvas },
-  topBar: { flexDirection: "row", alignItems: "center", paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
-  backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: radii.pill,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: "center",
-    justifyContent: "center",
-    ...shadowSoft,
-  },
-  backIcon: { fontSize: 22, color: colors.primary, marginTop: -2 },
-  topTitle: { flex: 1, textAlign: "center", ...typography.title, color: colors.text },
-  topRight: { width: 36 },
 
   searchRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginHorizontal: spacing.md,
+    marginHorizontal: spacing.lg,
     backgroundColor: colors.surface,
     borderRadius: radii.lg,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderWidth: 1,
     borderColor: colors.border,
     marginBottom: spacing.sm,
     gap: 10,
     ...shadowSoft,
   },
-  searchIcon: { fontSize: 16 },
   searchInput: { flex: 1, fontSize: 15, color: colors.text },
 
-  listContent: { paddingHorizontal: spacing.md, paddingBottom: spacing.xl * 2 },
-  sectionTitle: { ...typography.subtitle, color: colors.text, marginBottom: spacing.sm },
+  listContent: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xl * 2 },
+  sectionLabel: { ...typography.label, color: colors.textSecondary, marginBottom: spacing.sm },
 
   visitorCard: {
     flexDirection: "row",
@@ -239,19 +212,27 @@ const styles = StyleSheet.create({
   avatar: {
     width: 42,
     height: 42,
-    borderRadius: radii.pill,
-    backgroundColor: colors.canvasAlt,
+    borderRadius: 21,
+    backgroundColor: colors.primaryBg,
     borderWidth: 1,
-    borderColor: colors.borderLight,
+    borderColor: colors.primaryLight,
     alignItems: "center",
     justifyContent: "center",
   },
-  avatarText: { ...typography.caption, fontWeight: "800", color: colors.primaryDark },
+  avatarText: { fontSize: 13, fontWeight: "700", color: colors.primaryDark },
   visitorInfo: { flex: 1, minWidth: 0 },
-  visitorName: { ...typography.subtitle, color: colors.text },
+  visitorName: { ...typography.h4, color: colors.text },
   visitorMeta: { ...typography.caption, color: colors.textSecondary, marginTop: 2, marginBottom: 6 },
-  badge: { alignSelf: "flex-start", paddingVertical: 3, paddingHorizontal: 10, borderRadius: radii.pill },
-  badgeText: { fontSize: 11, fontWeight: "700" },
+  badge: {
+    alignSelf: "flex-start",
+    paddingVertical: 3,
+    paddingHorizontal: 10,
+    borderRadius: radii.pill,
+    backgroundColor: colors.primaryBg,
+    borderWidth: 1,
+    borderColor: colors.primaryLight,
+  },
+  badgeText: { fontSize: 10, fontWeight: "600", color: colors.primaryDark },
 
   checkInBtn: {
     backgroundColor: colors.primary,
@@ -262,24 +243,29 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  checkInBtnText: { color: "#fff", fontSize: 13, fontWeight: "800" },
+  checkInBtnText: { color: "#fff", fontSize: 13, fontWeight: "600" },
 
   hintWrap: { paddingTop: 40, alignItems: "center" },
-  hintText: { ...typography.body, color: colors.textSecondary },
+  hintText: { ...typography.bodySmall, color: colors.textSecondary },
 
   emptyWrap: { alignItems: "center", paddingTop: 40, paddingHorizontal: 20 },
-  emptyText: { ...typography.title, color: colors.text, marginBottom: 6 },
-  emptySub: { ...typography.body, color: colors.textSecondary, textAlign: "center", lineHeight: 22, marginBottom: spacing.md },
+  emptyText: { ...typography.h3, color: colors.text, marginBottom: 6 },
+  emptySub: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+    textAlign: "center",
+    marginBottom: spacing.md,
+  },
   emptyBtn: {
     marginTop: spacing.sm,
-    backgroundColor: colors.surface,
-    borderWidth: 2,
+    backgroundColor: colors.white,
+    borderWidth: 1.5,
     borderColor: colors.primary,
     borderRadius: radii.lg,
     paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
   },
-  emptyBtnText: { ...typography.subtitle, color: colors.primary },
+  emptyBtnText: { ...typography.h4, color: colors.primary },
 })
 
 export default SearchVisitorScreen

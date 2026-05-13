@@ -3,9 +3,10 @@
 import type { StackNavigationProp } from "@react-navigation/stack"
 import type React from "react"
 import { useEffect, useMemo, useState } from "react"
-import { Alert, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from "react-native"
+import { Alert, ScrollView, StatusBar, StyleSheet, Text, View } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import AppButton from "../components/ui/AppButton"
+import ScreenHeader from "../components/ui/ScreenHeader"
 import type { RootStackParamList } from "../navigation/AppNavigator"
 import { databaseService } from "../services/database"
 import { syncService, type SyncStatus } from "../services/sync"
@@ -75,11 +76,10 @@ const SyncStatusScreen: React.FC<Props> = ({ navigation }) => {
   const statusConfig = useMemo(() => {
     if (syncStatus === "error") {
       return {
-        icon: "⚠",
+        icon: "!",
         title: "Sync error",
         sub: "Check your connection and try again.",
-        bg: colors.coralSoft,
-        border: "#fecdd3",
+        variant: "dark" as const,
       }
     }
     if (syncStatus === "syncing") {
@@ -87,8 +87,7 @@ const SyncStatusScreen: React.FC<Props> = ({ navigation }) => {
         icon: "↻",
         title: "Syncing",
         sub: "Uploading data…",
-        bg: colors.cyanSoft,
-        border: "#a5f3fc",
+        variant: "primary" as const,
       }
     }
     if (isPending) {
@@ -96,40 +95,42 @@ const SyncStatusScreen: React.FC<Props> = ({ navigation }) => {
         icon: "↻",
         title: "Sync pending",
         sub: `${totalUnsynced} record${totalUnsynced !== 1 ? "s" : ""} waiting to upload`,
-        bg: "#fffbeb",
-        border: "#fde68a",
+        variant: "light" as const,
       }
     }
     return {
       icon: "✓",
       title: "All synced",
       sub: "Your data is up to date",
-      bg: colors.mintSoft,
-      border: "#a7f3d0",
+      variant: "primary" as const,
     }
   }, [isPending, syncStatus, totalUnsynced])
+
+  const statusCardStyle =
+    statusConfig.variant === "dark"
+      ? styles.statusCardDark
+      : statusConfig.variant === "light"
+        ? styles.statusCardLight
+        : styles.statusCardPrimary
 
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar barStyle="dark-content" />
-
-      <View style={styles.topBar}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} activeOpacity={0.85}>
-          <Text style={styles.backIcon}>‹</Text>
-        </TouchableOpacity>
-        <Text style={styles.topTitle}>Sync Status</Text>
-        <View style={styles.topRight} />
-      </View>
+      <ScreenHeader title="Sync Status" onBack={() => navigation.goBack()} />
 
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
-        <View style={[styles.statusCard, { backgroundColor: statusConfig.bg, borderColor: statusConfig.border }]}>
+        <View style={[styles.statusCard, statusCardStyle]}>
           <View style={styles.statusRow}>
             <View style={styles.statusIconWrap}>
               <Text style={styles.statusIcon}>{statusConfig.icon}</Text>
             </View>
             <View style={styles.statusText}>
-              <Text style={styles.statusTitle}>{statusConfig.title}</Text>
-              <Text style={styles.statusSub}>{statusConfig.sub}</Text>
+              <Text style={[styles.statusTitle, statusConfig.variant === "dark" && styles.statusTitleLight]}>
+                {statusConfig.title}
+              </Text>
+              <Text style={[styles.statusSub, statusConfig.variant === "dark" && styles.statusSubLight]}>
+                {statusConfig.sub}
+              </Text>
             </View>
           </View>
           {isPending && (
@@ -137,7 +138,7 @@ const SyncStatusScreen: React.FC<Props> = ({ navigation }) => {
           )}
         </View>
 
-        <Text style={styles.sectionTitle}>Unsynced records</Text>
+        <Text style={styles.sectionLabel}>Unsynced Records</Text>
         <View style={styles.card}>
           {[
             { label: "Services", count: unsyncedCounts.services },
@@ -146,8 +147,8 @@ const SyncStatusScreen: React.FC<Props> = ({ navigation }) => {
           ].map((row, i, arr) => (
             <View key={row.label} style={[styles.row, i < arr.length - 1 && styles.rowBorder]}>
               <Text style={styles.rowLabel}>{row.label}</Text>
-              <View style={[styles.badge, { backgroundColor: row.count > 0 ? "#fef3c7" : colors.mintSoft }]}>
-                <Text style={[styles.badgeText, { color: row.count > 0 ? "#92400e" : colors.mint }]}>
+              <View style={[styles.badge, row.count > 0 ? styles.badgePending : styles.badgeSynced]}>
+                <Text style={[styles.badgeText, row.count > 0 ? styles.badgeTextPending : styles.badgeTextSynced]}>
                   {row.count > 0 ? `${row.count} pending` : "Synced"}
                 </Text>
               </View>
@@ -156,7 +157,7 @@ const SyncStatusScreen: React.FC<Props> = ({ navigation }) => {
         </View>
 
         <View style={styles.infoCard}>
-          <Text style={styles.infoTitle}>About sync</Text>
+          <Text style={styles.infoTitle}>About Sync</Text>
           <Text style={styles.infoText}>
             This app works offline-first. Data is stored locally and synced when you're online.
           </Text>
@@ -170,82 +171,81 @@ const SyncStatusScreen: React.FC<Props> = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.canvas },
-  topBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: radii.pill,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: "center",
-    justifyContent: "center",
-    ...shadowSoft,
-  },
-  backIcon: { fontSize: 22, color: colors.primary, marginTop: -2 },
-  topTitle: { flex: 1, textAlign: "center", ...typography.title, color: colors.text },
-  topRight: { width: 36 },
-
-  scroll: { flex: 1, paddingHorizontal: spacing.md },
+  scroll: { flex: 1, paddingHorizontal: spacing.lg },
 
   statusCard: {
     borderRadius: radii.xl,
-    borderWidth: 1,
     padding: spacing.lg,
     marginBottom: spacing.lg,
     ...shadowCard,
   },
-  statusRow: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: spacing.md },
+  statusCardPrimary: {
+    backgroundColor: colors.primaryDark,
+  },
+  statusCardLight: {
+    backgroundColor: colors.primaryBg,
+    borderWidth: 1,
+    borderColor: colors.primaryLight,
+  },
+  statusCardDark: {
+    backgroundColor: colors.primaryDark,
+  },
+  statusRow: { flexDirection: "row", alignItems: "center", gap: 14 },
   statusIconWrap: {
     width: 44,
     height: 44,
-    borderRadius: radii.lg,
-    backgroundColor: "rgba(255,255,255,0.6)",
+    borderRadius: radii.md,
+    backgroundColor: "rgba(255,255,255,0.15)",
     alignItems: "center",
     justifyContent: "center",
   },
-  statusIcon: { fontSize: 22, color: colors.primaryDark, fontWeight: "800" },
+  statusIcon: { fontSize: 20, color: "#fff", fontWeight: "700" },
   statusText: { flex: 1 },
-  statusTitle: { ...typography.title, color: colors.text },
-  statusSub: { ...typography.body, color: colors.textSecondary, marginTop: 2, lineHeight: 20 },
-  syncBtn: { marginTop: spacing.xs },
+  statusTitle: { ...typography.h3, color: "#fff" },
+  statusTitleLight: { color: colors.primaryDark },
+  statusSub: { ...typography.bodySmall, color: "rgba(255,255,255,0.75)", marginTop: 4 },
+  statusSubLight: { color: colors.textSecondary },
+  syncBtn: { marginTop: spacing.md },
 
-  sectionTitle: { ...typography.subtitle, color: colors.text, marginBottom: spacing.sm },
+  sectionLabel: { ...typography.label, color: colors.textSecondary, marginBottom: spacing.sm },
   card: {
     backgroundColor: colors.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.borderLight,
+    borderColor: colors.border,
     paddingHorizontal: spacing.md,
     ...shadowSoft,
     marginBottom: spacing.md,
   },
-  row: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 12 },
+  row: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 14 },
   rowBorder: { borderBottomWidth: 1, borderBottomColor: colors.borderLight },
-  rowLabel: { ...typography.body, color: colors.textSecondary },
+  rowLabel: { ...typography.body, color: colors.text },
   badge: {
     paddingVertical: 4,
     paddingHorizontal: 10,
     borderRadius: radii.pill,
-    borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.04)",
   },
-  badgeText: { ...typography.caption, fontWeight: "700" },
+  badgePending: {
+    backgroundColor: colors.primaryBg,
+    borderWidth: 1,
+    borderColor: colors.primaryLight,
+  },
+  badgeSynced: {
+    backgroundColor: colors.primaryDark,
+  },
+  badgeText: { ...typography.caption, fontWeight: "600" },
+  badgeTextPending: { color: colors.primaryDark },
+  badgeTextSynced: { color: "#fff" },
 
   infoCard: {
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: colors.primaryBg,
     borderRadius: radii.lg,
     padding: spacing.lg,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.primaryLight,
   },
-  infoTitle: { ...typography.subtitle, color: colors.text, marginBottom: spacing.sm },
-  infoText: { ...typography.body, color: colors.textSecondary, lineHeight: 22 },
+  infoTitle: { ...typography.h4, color: colors.primaryDark, marginBottom: spacing.sm },
+  infoText: { ...typography.bodySmall, color: colors.textSecondary },
 })
 
 export default SyncStatusScreen

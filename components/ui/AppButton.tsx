@@ -10,7 +10,7 @@ import {
     type TextStyle,
     type ViewStyle,
 } from "react-native"
-import { colors, radii } from "../../theme/modernTheme"
+import { colors, radii, shadowButton } from "../../theme/modernTheme"
 
 export type AppButtonVariant = "primary" | "secondary" | "outline" | "danger" | "success" | "ghost"
 
@@ -36,6 +36,7 @@ const AppButton: React.FC<AppButtonProps> = ({
   const btnStyle: ViewStyle = StyleSheet.flatten([
     styles.base,
     variantStyles[variant].btn,
+    variant === "primary" && shadowButton,
     isDisabled && styles.disabled,
     style,
   ])
@@ -43,7 +44,7 @@ const AppButton: React.FC<AppButtonProps> = ({
   const txtStyle: TextStyle = StyleSheet.flatten([styles.text, variantStyles[variant].text])
 
   return (
-    <TouchableOpacity style={btnStyle} onPress={onPress} disabled={isDisabled} activeOpacity={0.75}>
+    <TouchableOpacity style={btnStyle} onPress={onPress} disabled={isDisabled} activeOpacity={0.8}>
       {loading ? (
         <ActivityIndicator color={variant === "primary" ? "#fff" : colors.primary} size="small" />
       ) : (
@@ -56,20 +57,21 @@ const AppButton: React.FC<AppButtonProps> = ({
 const styles = StyleSheet.create({
   base: {
     width: "100%",
-    paddingVertical: 14,
+    paddingVertical: 15,
     paddingHorizontal: 20,
     borderRadius: radii.lg,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 10,
-    minHeight: 50,
+    minHeight: 52,
   },
   disabled: {
-    opacity: 0.5,
+    opacity: 0.45,
   },
   text: {
     fontSize: 15,
     fontWeight: "600",
+    letterSpacing: 0.2,
   },
 })
 
@@ -79,20 +81,20 @@ const variantStyles: Record<AppButtonVariant, { btn: ViewStyle; text: TextStyle 
     text: { color: "#fff" },
   },
   secondary: {
-    btn: { backgroundColor: colors.primaryBg },
-    text: { color: colors.primary },
+    btn: { backgroundColor: colors.primaryBg, borderWidth: 1, borderColor: colors.primaryLight },
+    text: { color: colors.primaryDark },
   },
   outline: {
-    btn: { backgroundColor: "transparent", borderWidth: 1.5, borderColor: colors.primary },
+    btn: { backgroundColor: colors.white, borderWidth: 1.5, borderColor: colors.primary },
     text: { color: colors.primary },
   },
   danger: {
-    btn: { backgroundColor: colors.dangerBg },
-    text: { color: colors.danger },
+    btn: { backgroundColor: colors.white, borderWidth: 1.5, borderColor: colors.primaryDark },
+    text: { color: colors.primaryDark },
   },
   success: {
-    btn: { backgroundColor: colors.successBg },
-    text: { color: colors.success },
+    btn: { backgroundColor: colors.primaryBg, borderWidth: 1, borderColor: colors.primaryLight },
+    text: { color: colors.primaryDark },
   },
   ghost: {
     btn: { backgroundColor: "transparent" },

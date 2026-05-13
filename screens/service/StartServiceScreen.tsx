@@ -17,6 +17,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context"
 import { v4 as uuidv4 } from "uuid"
 import AppButton from "../../components/ui/AppButton"
+import ScreenHeader from "../../components/ui/ScreenHeader"
 import type { RootStackParamList } from "../../navigation/AppNavigator"
 import { apiService } from "../../services/api"
 import { databaseService, type ServiceType } from "../../services/database"
@@ -40,15 +41,10 @@ const StartServiceScreen: React.FC<Props> = ({ navigation }) => {
     loadServiceTypes()
   }, [])
 
-  const iconForType = (typeName: string) => {
-    const n = typeName.toLowerCase()
-    if (n.includes("sunday") || n.includes("morning")) return "🌅"
-    if (n.includes("evening") || n.includes("night")) return "🌙"
-    if (n.includes("bible") || n.includes("study")) return "📖"
-    if (n.includes("prayer")) return "🙏"
-    if (n.includes("youth")) return "🎵"
-    if (n.includes("special") || n.includes("program")) return "✨"
-    return "⛪"
+  const initialForType = (typeName: string) => {
+    const words = typeName.trim().split(/\s+/).filter(Boolean)
+    if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase()
+    return (words[0]?.[0] ?? "S").toUpperCase()
   }
 
   const loadServiceTypes = async () => {
@@ -148,31 +144,32 @@ const StartServiceScreen: React.FC<Props> = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar barStyle="dark-content" />
-      <View style={styles.topBar}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} activeOpacity={0.85}>
-          <Text style={styles.backIcon}>‹</Text>
-        </TouchableOpacity>
-        <Text style={styles.topTitle}>Start Service</Text>
-        <View style={styles.topRight} />
-      </View>
+      <ScreenHeader title="Start Service" onBack={() => navigation.goBack()} />
 
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        <Text style={styles.sectionTitle}>Service Type</Text>
+        <Text style={styles.sectionLabel}>Service Type</Text>
         <View style={styles.typeGrid}>
-          {serviceTypes.map((t) => (
-            <TouchableOpacity
-              key={t.id}
-              style={[styles.typeCard, selectedServiceType === t.id && styles.typeCardSelected]}
-              onPress={() => setSelectedServiceType(t.id)}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.typeIcon}>{iconForType(t.name)}</Text>
-              <Text style={[styles.typeName, selectedServiceType === t.id && styles.typeNameSelected]}>{t.name}</Text>
-            </TouchableOpacity>
-          ))}
+          {serviceTypes.map((t) => {
+            const selected = selectedServiceType === t.id
+            return (
+              <TouchableOpacity
+                key={t.id}
+                style={[styles.typeCard, selected && styles.typeCardSelected]}
+                onPress={() => setSelectedServiceType(t.id)}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.typeInitial, selected && styles.typeInitialSelected]}>
+                  <Text style={[styles.typeInitialText, selected && styles.typeInitialTextSelected]}>
+                    {initialForType(t.name)}
+                  </Text>
+                </View>
+                <Text style={[styles.typeName, selected && styles.typeNameSelected]}>{t.name}</Text>
+              </TouchableOpacity>
+            )
+          })}
         </View>
 
-        <Text style={styles.sectionTitle}>Details</Text>
+        <Text style={styles.sectionLabel}>Details</Text>
 
         <Text style={styles.inputLabel}>Date</Text>
         <View style={styles.dateField}>
@@ -199,7 +196,7 @@ const StartServiceScreen: React.FC<Props> = ({ navigation }) => {
         />
 
         <View style={styles.ctaWrap}>
-          <AppButton title="Start Service →" onPress={handleStartService} loading={isLoading} disabled={isLoading} />
+          <AppButton title="Start Service" onPress={handleStartService} loading={isLoading} disabled={isLoading} />
         </View>
         <View style={{ height: spacing.xl }} />
       </ScrollView>
@@ -216,33 +213,18 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: spacing.md,
-    ...typography.body,
+    ...typography.bodySmall,
     color: colors.textSecondary,
   },
   safe: { flex: 1, backgroundColor: colors.canvas },
-  topBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: radii.pill,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: "center",
-    justifyContent: "center",
-    ...shadowSoft,
-  },
-  backIcon: { fontSize: 22, color: colors.primary, marginTop: -2 },
-  topTitle: { flex: 1, textAlign: "center", ...typography.title, color: colors.text },
-  topRight: { width: 36 },
+  scroll: { flex: 1, paddingHorizontal: spacing.lg },
 
-  scroll: { flex: 1, paddingHorizontal: spacing.md },
-  sectionTitle: { ...typography.subtitle, marginTop: spacing.md, marginBottom: spacing.sm, color: colors.text },
+  sectionLabel: {
+    ...typography.label,
+    color: colors.textSecondary,
+    marginTop: spacing.md,
+    marginBottom: spacing.sm,
+  },
 
   typeGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: spacing.md },
   typeCard: {
@@ -257,34 +239,61 @@ const styles = StyleSheet.create({
   },
   typeCardSelected: {
     borderColor: colors.primary,
-    backgroundColor: colors.canvasAlt,
+    backgroundColor: colors.primaryBg,
   },
-  typeIcon: { fontSize: 26, marginBottom: 6 },
-  typeName: { ...typography.caption, fontWeight: "700", color: colors.textSecondary, textAlign: "center" },
-  typeNameSelected: { color: colors.primary },
+  typeInitial: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.primaryBg,
+    borderWidth: 1,
+    borderColor: colors.primaryLight,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 8,
+  },
+  typeInitialSelected: {
+    backgroundColor: colors.primaryDark,
+    borderColor: colors.primaryDark,
+  },
+  typeInitialText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: colors.primaryDark,
+  },
+  typeInitialTextSelected: {
+    color: "#fff",
+  },
+  typeName: {
+    ...typography.caption,
+    fontWeight: "600",
+    color: colors.textSecondary,
+    textAlign: "center",
+  },
+  typeNameSelected: { color: colors.primaryDark },
 
-  inputLabel: { ...typography.small, color: colors.textSecondary, marginBottom: 6 },
+  inputLabel: { ...typography.label, color: colors.textSecondary, marginBottom: 6 },
   input: {
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: radii.lg,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 13,
     fontSize: 15,
     color: colors.text,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.md,
   },
   dateField: {
-    backgroundColor: colors.canvasAlt,
+    backgroundColor: colors.primaryBg,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.borderLight,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    marginBottom: spacing.sm,
+    borderColor: colors.primaryLight,
+    paddingHorizontal: 16,
+    paddingVertical: 13,
+    marginBottom: spacing.md,
   },
-  dateText: { ...typography.body, color: colors.primaryDark, fontWeight: "700" },
+  dateText: { ...typography.body, color: colors.primaryDark, fontWeight: "600" },
   ctaWrap: {
     marginTop: spacing.sm,
   },

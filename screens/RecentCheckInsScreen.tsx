@@ -9,10 +9,10 @@ import {
     StyleSheet,
     Text,
     TextInput,
-    TouchableOpacity,
     View,
 } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
+import ScreenHeader from "../components/ui/ScreenHeader"
 import type { RootStackParamList } from "../navigation/AppNavigator"
 import { databaseService, type Attendance, type Service, type Visitor } from "../services/database"
 import { colors, radii, shadowSoft, spacing, typography } from "../theme/modernTheme"
@@ -26,14 +26,6 @@ interface Props {
 interface CheckInRecord extends Attendance {
   visitor: Visitor
   service: Service
-}
-
-const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
-  Member: { bg: "#d1fae5", text: "#065f46" },
-  Visitor: { bg: "#dbeafe", text: "#1a6fd4" },
-  "First-timer": { bg: "#fef3c7", text: "#92400e" },
-  Worker: { bg: "#f3f4f6", text: "#374151" },
-  Youth: { bg: "#ede9fe", text: "#5b21b6" },
 }
 
 function initials(name: string) {
@@ -96,17 +88,9 @@ const RecentCheckInsScreen: React.FC<Props> = ({ navigation }: Props) => {
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar barStyle="dark-content" />
-
-      <View style={styles.topBar}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} activeOpacity={0.85}>
-          <Text style={styles.backIcon}>‹</Text>
-        </TouchableOpacity>
-        <Text style={styles.topTitle}>Recent Check-ins</Text>
-        <View style={styles.topRight} />
-      </View>
+      <ScreenHeader title="Recent Check-ins" onBack={() => navigation.goBack()} />
 
       <View style={styles.searchRow}>
-        <Text style={styles.searchIcon}>🔍</Text>
         <TextInput
           style={styles.searchInput}
           placeholder="Filter by name..."
@@ -131,7 +115,6 @@ const RecentCheckInsScreen: React.FC<Props> = ({ navigation }: Props) => {
         renderItem={({ item }) => {
           const fullName = `${item.visitor.first_name} ${item.visitor.last_name ?? ""}`.trim() || "—"
           const statusLabel = (item.visitor.status || "Visitor").split(",")[0]?.trim() || "Visitor"
-          const sc = STATUS_COLORS[statusLabel] ?? STATUS_COLORS.Visitor
           const tl = timeLabel(item.checked_in_at)
           return (
             <View style={styles.card}>
@@ -142,16 +125,14 @@ const RecentCheckInsScreen: React.FC<Props> = ({ navigation }: Props) => {
                 <Text style={styles.name}>{fullName}</Text>
                 <View style={styles.metaRow}>
                   <Text style={styles.meta}>{item.service.service_type_name || "Service"}</Text>
-                  <View style={[styles.badge, { backgroundColor: sc.bg }]}>
-                    <Text style={[styles.badgeText, { color: sc.text }]}>{statusLabel}</Text>
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>{statusLabel}</Text>
                   </View>
                 </View>
               </View>
               <View style={styles.timeWrap}>
                 <Text style={styles.time}>{tl.time}</Text>
-                <Text style={[styles.day, { color: tl.day === "Today" ? colors.primary : colors.textMuted }]}>
-                  {tl.day}
-                </Text>
+                <Text style={[styles.day, tl.day === "Today" && styles.dayToday]}>{tl.day}</Text>
               </View>
             </View>
           )
@@ -168,43 +149,24 @@ const RecentCheckInsScreen: React.FC<Props> = ({ navigation }: Props) => {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.canvas },
-  topBar: { flexDirection: "row", alignItems: "center", paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
-  backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: radii.pill,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: "center",
-    justifyContent: "center",
-    ...shadowSoft,
-  },
-  backIcon: { fontSize: 22, color: colors.primary, marginTop: -2 },
-  topTitle: { flex: 1, textAlign: "center", ...typography.title, color: colors.text },
-  topRight: { width: 36 },
 
   searchRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginHorizontal: spacing.md,
+    marginHorizontal: spacing.lg,
     backgroundColor: colors.surface,
     borderRadius: radii.lg,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderWidth: 1,
     borderColor: colors.border,
     marginBottom: spacing.sm,
-    gap: 10,
     ...shadowSoft,
   },
-  searchIcon: { fontSize: 16 },
   searchInput: { flex: 1, fontSize: 15, color: colors.text },
 
   listContent: {
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.lg,
     paddingBottom: spacing.xl * 2,
-    paddingTop: 8,
+    paddingTop: 4,
   },
   countLabel: { ...typography.caption, color: colors.textSecondary, marginBottom: spacing.sm },
   card: {
@@ -220,29 +182,37 @@ const styles = StyleSheet.create({
     ...shadowSoft,
   },
   avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: radii.pill,
-    backgroundColor: colors.canvasAlt,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: colors.primaryBg,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: colors.borderLight,
+    borderColor: colors.primaryLight,
   },
-  avatarText: { ...typography.caption, fontWeight: "800", color: colors.primaryDark },
+  avatarText: { fontSize: 13, fontWeight: "700", color: colors.primaryDark },
   info: { flex: 1, minWidth: 0 },
   name: {
-    ...typography.subtitle,
+    ...typography.h4,
     color: colors.text,
     marginBottom: 4,
   },
-  metaRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  metaRow: { flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" },
   meta: { ...typography.caption, color: colors.textSecondary },
-  badge: { paddingVertical: 2, paddingHorizontal: 8, borderRadius: radii.pill },
-  badgeText: { fontSize: 10, fontWeight: "700" },
+  badge: {
+    paddingVertical: 2,
+    paddingHorizontal: 8,
+    borderRadius: radii.pill,
+    backgroundColor: colors.primaryBg,
+    borderWidth: 1,
+    borderColor: colors.primaryLight,
+  },
+  badgeText: { fontSize: 10, fontWeight: "600", color: colors.primaryDark },
   timeWrap: { alignItems: "flex-end" },
-  time: { fontSize: 11, color: colors.textSecondary, fontWeight: "600" },
-  day: { fontSize: 10, fontWeight: "700", marginTop: 2 },
+  time: { fontSize: 12, color: colors.textSecondary, fontWeight: "500" },
+  day: { fontSize: 10, fontWeight: "600", color: colors.textMuted, marginTop: 2 },
+  dayToday: { color: colors.primary },
   empty: { alignItems: "center", paddingTop: 60 },
   emptyText: { ...typography.body, color: colors.textSecondary },
 })
